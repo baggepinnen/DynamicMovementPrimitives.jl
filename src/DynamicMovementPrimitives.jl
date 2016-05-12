@@ -13,8 +13,15 @@ function centraldiff(v)
     a = a1+a2
 end
 
+"""Takes a n vector of m vectors and creates a n×m matrix"""
 vv2m(x::Vector) = [x[i][j] for i in eachindex(x), j in eachindex(x[1])]
 
+"""
+`DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4)`
+Holds parameters for fitting a DMP
+# Fields
+`Nbasis,αx,αz,βz`
+"""
 type DMPopts
     Nbasis::Int
     αx::Real
@@ -22,6 +29,13 @@ type DMPopts
     βz::Real
 end
 
+DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4)
+
+"""
+The result of fitting a DMP
+#Fields
+`opts,g,y,ẏ,ÿ,w,τ,c,σ2`
+"""
 type DMP
     opts::DMPopts
     g::Vector{Float64}
@@ -34,7 +48,7 @@ type DMP
     σ2::Vector{Float64}
 end
 
-DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4)
+
 
 function get_centers_linear(Nbasis)
     Ni = 1/(Nbasis+1)
@@ -65,6 +79,13 @@ _y0(dmp::DMP) = _y0(dmp.y)
 _T(dmp::DMP) = size(dmp.y,1)
 
 
+"""
+`fit(y, ẏ, ÿ, opts, g=y[end])`
+
+Fits a DMP to data\n
+`y, ẏ, ÿ` are position, velocity and acceleration respectively, `T×n` matrices where `T` is the number of time steps and `n` is the number of degrees of freedom.
+
+"""
 function fit(y,ẏ,ÿ,opts,g=y[end,:][:])
 
     T,n = size(y)
@@ -93,6 +114,13 @@ function fit(y,ẏ,ÿ,opts,g=y[end,:][:])
     return DMP(opts, g, y, ẏ, ÿ, w, τ,c,σ2)
 end
 
+"""
+`force(dmp,x)`
+
+Calculate the forcing term for `dmp` when the phase variable is `x`\n
+`x` can be a scalar or a vector\n
+The return value will be a `n` Vector or `T×n` Matrix depending on `typeof(x)`
+"""
 function force(d::DMP,x::AbstractVector)
     Ψ   = kernel_matrix(x,d.c,d.σ2)
     f   = Ψ*d.w .* (x.*(d.g-_y0(d))')
@@ -110,6 +138,16 @@ function acceleration(d::DMP,y,ẏ,x,g)
     αz*(βz*(g-y)-ẏ)+f
 end
 
+"""
+    `solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _y0(dmp), g = dmp.g, solver=ode45)`
+
+`t` time vector
+
+## Keyword arguments: \n
+`y0` start position, defaults to the initial point in training data from `dmp`
+`g` goal, defaults to goal from `dmp`\n
+`solver` the ode solver to use, see https://github.com/JuliaLang/ODE.jl \n
+"""
 function solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _y0(dmp), g = dmp.g, solver=ode45)
     n       = size(dmp.y,2)
     αx      = dmp.opts.αx
