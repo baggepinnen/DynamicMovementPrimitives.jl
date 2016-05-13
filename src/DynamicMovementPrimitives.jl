@@ -2,7 +2,7 @@ module DynamicMovementPrimitives
 using Plots, ODE, Debug
 
 
-export DMPopts, centraldiff,fit, solve, force, acceleration
+export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical
 
 
 function centraldiff(v)
@@ -55,25 +55,28 @@ function get_centers_linear(Nbasis)
     return Ni:Ni:1-Ni
 end
 
-# function get_centers_log(Nbasis)
-#     Ni = 1/(Nbasis+1)
-#     return (1-logspace(log10(Ni),log10(1-Ni),Nbasis))[end:-1:1]
-# end
+function get_centers_log(Nbasis)
+    Ni = 1/(Nbasis+1)
+    return (logspace(log10(Ni),log10(1-Ni),Nbasis))[end:-1:1]
+end
+
+comp(x) = (x)
 
 function kernel_matrix(x::AbstractVector,c,σ2)
-    Ψ = Float64[exp(-1/(2σ2[j])*(x[t]-c[j])^2) for t in eachindex(x), j in eachindex(c)]
+    Ψ = Float64[exp(-1/(2σ2[j])*(comp(x)-(c[j]))^2) for x in x, j in eachindex(c)]
     Ψ ./= sum(Ψ,2)
     Ψ
 end
 
 function kernel_vector(x::Real,c,σ2)
-    Ψ = Float64[exp(-1/(2σ2[j])*(x-c[j])^2) for j in eachindex(c)]
+    Ψ = Float64[exp(-1/(2σ2[j])*(comp(x)-(c[j]))^2) for j in eachindex(c)]
     Ψ ./= sum(Ψ)
     Ψ
 end
 
 solve_canonical(αx,τ,T::AbstractVector) = exp(-αx/τ.*T)
 solve_canonical(αx,τ,T::Real) = solve_canonical(αx,τ,(0:T-1))
+solve_canonical(dmp::DMP,t) = solve_canonical(dmp.opts.αx, dmp.τ, t)
 _y0(y::VecOrMat) = y[1,:][:]
 _y0(dmp::DMP) = _y0(dmp.y)
 _T(dmp::DMP) = size(dmp.y,1)
@@ -98,14 +101,14 @@ function fit(y,ẏ,ÿ,opts,g=y[end,:][:])
     x = solve_canonical(αx,τ,T)
     σ2 = (0.5/Nbasis)^2 * ones(Nbasis)
 
-    ft = τ^2*ÿ - αz*(βz*(g.-y)-τ*ẏ)
+    ft = τ^2*ÿ - αz*(βz*(g'.-y)-τ*ẏ)
     ξ = x.*(g-y0)'
     c = get_centers_linear(Nbasis)
     Ψ = kernel_matrix(x,c,σ2)
-
+    plot(Ψ);gui()
 
     w = zeros(Nbasis,n)
-    for i = 1:n
+    for i = 1:n #joints
         for j = 1:Nbasis
             sTΓ = (ξ[:,i].*Ψ[:,j])'
             w[j,i] = (sTΓ*ft[:,i]/(sTΓ*ξ[:,i]))[1]
@@ -131,11 +134,11 @@ function force(d::DMP,x::Number)
     f   = vec(Ψ'd.w) .* (x*(d.g-_y0(d)))
 end
 
-function acceleration(d::DMP,y,ẏ,x,g)
+function acceleration(d::DMP,y,ẏ,x,g,n)
     αz = d.opts.αz
     βz = d.opts.βz
-    f = force(d,x)
-    αz*(βz*(g-y)-ẏ)+f
+    f = force(d,x)[n]
+    αz*(βz*(g'-y)-ẏ)+f
 end
 
 """
@@ -149,26 +152,30 @@ end
 `solver` the ode solver to use, see https://github.com/JuliaLang/ODE.jl \n
 """
 function solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _y0(dmp), g = dmp.g, solver=ode45)
-    n       = size(dmp.y,2)
+    T,n     = size(dmp.y)
     αx      = dmp.opts.αx
     τ       = dmp.τ
-    state0  = [zeros(y0); y0; 1.]
-    function time_derivative(t,state)
-        z   = state[1:n]
-        y   = state[n+1:2n]
-        x   = state[end]
-        zp  = acceleration(dmp, y, z, x,g)
-        yp  = z
-        xp  = -αx * x
-        [zp;yp;xp] / τ
+    z       = zeros(T,n)
+    y       = zeros(T,n)
+    x       = zeros(T)
+    for i = 1:n
+        function time_derivative(t,state)
+            local z   = state[1]
+            local y   = state[2]
+            local x   = state[3]
+            zp  = acceleration(dmp, y, z, x,g[i],i)
+            yp  = z
+            xp  = -αx * x
+            [zp;yp;xp] / τ
+        end
+        state0  = [0; y0[i]; 1.]
+        tout,state_history = solver(time_derivative, state0, t,points=:specified)
+        res = vv2m(state_history)
+        z[:,i] = res[:,1]/τ
+        y[:,i] = res[:,2]
+        x = res[:,3] # TODO: se till att denna är samma för alla DOF
     end
-    tout,state_history = solver(time_derivative, state0, t)
-    res = vv2m(state_history)
-
-    z = res[:,1:n]
-    y = res[:,n+1:2n]
-    x = res[:,end]
-    tout,y,z,x
+    t,y,z,x
 
 end
 
