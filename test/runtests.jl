@@ -1,6 +1,6 @@
 using DynamicMovementPrimitives
 using Base.Test
-using Plots, DSP
+using Plots
 math(sl) = map(s->string("\$",s,"\$") ,sl)
 Nbasis = 15
 az = 25.
