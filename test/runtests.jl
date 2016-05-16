@@ -1,6 +1,5 @@
 using DynamicMovementPrimitives
 using Base.Test
-using Plots
 math(sl) = map(s->string("\$",s,"\$") ,sl)
 Nbasis = 15
 az = 25.
@@ -25,8 +24,6 @@ dmp = fit(y,ẏ,ÿ,opts)
 
 tout,yout,ẏout,xout = solve(dmp,t)
 
-plot(tout,[yout ẏout xout],lab = ["y_{out}" "ẏ_{out}" "x_{out}"] |> math)
-plot!(t,[y ẏ],l=:dash,lab = ["y" "ẏ"] |> math)
-gui()
-# plot(force(dmp,solve_canonical(dmp,t)))
-# gui()
+@test tout == t
+@test abs(yout .- y) |> sum < 3
+@test abs(ẏout .- ẏ) |> sum < 0.3

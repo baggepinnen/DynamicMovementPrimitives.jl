@@ -1,5 +1,5 @@
 module DynamicMovementPrimitives
-using Plots, ODE, Debug
+using ODE
 
 
 export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical
@@ -105,7 +105,6 @@ function fit(y,ẏ,ÿ,opts,g=y[end,:][:])
     ξ = x.*(g-y0)'
     c = get_centers_linear(Nbasis)
     Ψ = kernel_matrix(x,c,σ2)
-    plot(Ψ);gui()
 
     w = zeros(Nbasis,n)
     for i = 1:n #joints
