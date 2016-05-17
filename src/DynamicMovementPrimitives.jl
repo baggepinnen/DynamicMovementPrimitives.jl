@@ -1,8 +1,8 @@
 module DynamicMovementPrimitives
-using ODE
+using ODE, Requires
 
 
-export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical
+export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plot
 
 
 function centraldiff(v)
@@ -13,7 +13,7 @@ function centraldiff(v)
     a = a1+a2
 end
 
-"""Takes a n vector of m vectors and creates a n×m matrix"""
+"""Takes an n vector of m vectors and creates a n×m matrix"""
 vv2m(x::Vector) = [x[i][j] for i in eachindex(x), j in eachindex(x[1])]
 
 """
@@ -91,7 +91,8 @@ Fits a DMP to data\n
 """
 function fit(y,ẏ,ÿ,opts,g=y[end,:][:])
 
-    T,n = size(y)
+    T = size(y,1)
+    n::Int = isa(y,Matrix) ? size(y,2) : 1
     τ = T/3 # After three time constants we have reached 1-exp(-3) ≈ 0.95
     Nbasis = opts.Nbasis
     βz = opts.βz
@@ -141,7 +142,7 @@ function acceleration(d::DMP,y,ẏ,x,g,n)
 end
 
 """
-    `solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _y0(dmp), g = dmp.g, solver=ode45)`
+`solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _y0(dmp), g = dmp.g, solver=ode45)`
 
 `t` time vector
 
@@ -179,5 +180,20 @@ function solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _y0(dmp), g = dmp.g, solver=ode45
 end
 
 
+plotdmp(dmp::DMP, args...) = println("To plot a DMP, install package Plots.jl or call tout,yout,ẏout,xout = solve(dmp) to produce your own plot.")
+
+
+@require Plots begin
+math(sl) = map(s->string("\$",s,"\$") ,sl)
+function plotdmp(dmp::DMP; kwargs...)
+    tout,yout,ẏout,xout = solve(dmp)
+    n = size(dmp.y,2)
+    fig = Plots.subplot(n = n, nc = 1)
+    for i = 1:n
+        Plots.plot!(fig[i,1],tout,[yout[:,i] ẏout[:,i]],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
+        Plots.plot!(fig[i,1],tout,[dmp.y[:,i] dmp.ẏ[:,i]],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
+    end
+end
+end
 
 end # module

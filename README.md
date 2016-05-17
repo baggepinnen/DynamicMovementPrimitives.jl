@@ -27,7 +27,5 @@ ÿ       = centraldiff(ẏ) / h
 dmp     = fit(y,ẏ,ÿ,opts)
 
 tout,yout,ẏout,xout = solve(dmp,t)
-
-plot(tout,[yout ẏout xout],lab = ["y_{out}" "ẏ_{out}" "x_{out}"] |> math)
-plot!(t,[y ẏ],l=:dash,lab = ["y" "ẏ"] |> math)
+plotdmp(dmp)
 ```
