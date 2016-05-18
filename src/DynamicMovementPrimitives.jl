@@ -2,14 +2,20 @@ module DynamicMovementPrimitives
 using ODE, Requires
 
 
-export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plot
+export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plotdmp
 
 
-function centraldiff(v)
-    c = size(v,2)
+function centraldiff(v::AbstractMatrix)
     dv = diff(v)/2
-    a1 = [zeros(1,c);dv]
-    a2 = [dv;zeros(1,c)]
+    a1 = [dv[1,:];dv]
+    a2 = [dv;dv[end,:]]
+    a = a1+a2
+end
+
+function centraldiff(v::AbstractVector)
+    dv = diff(v)/2
+    a1 = [dv[1];dv]
+    a2 = [dv;dv[end]]
     a = a1+a2
 end
 
@@ -20,7 +26,8 @@ vv2m(x::Vector) = [x[i][j] for i in eachindex(x), j in eachindex(x[1])]
 `DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4)`
 Holds parameters for fitting a DMP
 # Fields
-`Nbasis,αx,αz,βz`
+`Nbasis,αx,αz,βz`\n
+See example file or the paper by Ijspeert et al. 2013
 """
 type DMPopts
     Nbasis::Int
@@ -34,7 +41,8 @@ DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4)
 """
 The result of fitting a DMP
 #Fields
-`opts,g,y,ẏ,ÿ,w,τ,c,σ2`
+`opts,g,y,ẏ,ÿ,w,τ,c,σ2`\n
+See example file or the paper by Ijspeert et al. 2013
 """
 type DMP
     opts::DMPopts
@@ -42,13 +50,12 @@ type DMP
     y::Matrix{Float64}
     ẏ::Matrix{Float64}
     ÿ::Matrix{Float64}
+    t::AbstractVector
     w::Matrix{Float64}
     τ::Float64
     c::Vector{Float64}
     σ2::Vector{Float64}
 end
-
-
 
 function get_centers_linear(Nbasis)
     Ni = 1/(Nbasis+1)
@@ -88,10 +95,12 @@ _T(dmp::DMP) = size(dmp.y,1)
 Fits a DMP to data\n
 `y, ẏ, ÿ` are position, velocity and acceleration respectively, `T×n` matrices where `T` is the number of time steps and `n` is the number of degrees of freedom.
 
+see also `solve`, `plotdmp`
 """
-function fit(y,ẏ,ÿ,opts,g=y[end,:][:])
+function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
 
-    T = size(y,1)
+    T = t[end]
+    N = size(y,1)
     n::Int = isa(y,Matrix) ? size(y,2) : 1
     τ = T/3 # After three time constants we have reached 1-exp(-3) ≈ 0.95
     Nbasis = opts.Nbasis
@@ -99,7 +108,7 @@ function fit(y,ẏ,ÿ,opts,g=y[end,:][:])
     αz = opts.αz
     αx = opts.αx
     y0 = _y0(y)
-    x = solve_canonical(αx,τ,T)
+    x = solve_canonical(αx,τ,t)
     σ2 = (0.5/Nbasis)^2 * ones(Nbasis)
 
     ft = τ^2*ÿ - αz*(βz*(g'.-y)-τ*ẏ)
@@ -114,7 +123,7 @@ function fit(y,ẏ,ÿ,opts,g=y[end,:][:])
             w[j,i] = (sTΓ*ft[:,i]/(sTΓ*ξ[:,i]))[1]
         end
     end
-    return DMP(opts, g, y, ẏ, ÿ, w, τ,c,σ2)
+    return DMP(opts, g, y, ẏ, ÿ,t, w, τ,c,σ2)
 end
 
 """
@@ -150,8 +159,10 @@ end
 `y0` start position, defaults to the initial point in training data from `dmp`
 `g` goal, defaults to goal from `dmp`\n
 `solver` the ode solver to use, see https://github.com/JuliaLang/ODE.jl \n
+
+see also `plotdmp`
 """
-function solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _y0(dmp), g = dmp.g, solver=ode45)
+function solve(dmp::DMP, t = dmp.t; y0 = _y0(dmp), g = dmp.g, solver=ode45)
     T,n     = size(dmp.y)
     αx      = dmp.opts.αx
     τ       = dmp.τ

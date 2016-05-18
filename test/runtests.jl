@@ -19,7 +19,7 @@ y = [y 0.5y]
 ẏ = centraldiff(y) / h
 ÿ = centraldiff(ẏ) / h
 
-dmp = fit(y,ẏ,ÿ,opts)
+dmp = fit(y,ẏ,ÿ,t,opts)
 
 
 tout,yout,ẏout,xout = solve(dmp,t)
