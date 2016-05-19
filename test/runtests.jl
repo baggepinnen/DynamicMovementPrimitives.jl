@@ -3,18 +3,19 @@ using Base.Test
 import DynamicMovementPrimitives: get_sched_sig, get_centers_linear, kernel_matrix, _1
 
 # Setup ============================================
-Nbasis = 15
-αz = 25.
-αx = 1.#az/3
+Nbasis = 20
+αzC = 25.
+αzPT = 10.
+αx = 1.#αz/3
 # bz = 1
 # close("all")
 
-optsC = DMPopts(Nbasis,αx,αz, :canonical)
-optsT = DMPopts(Nbasis,αx,αz, :time)
-optsP = DMPopts(Nbasis,αx,αz, :position)
-@test optsC.βz == αz/4
+optsC = DMPopts(Nbasis,αx,αzC, :canonical)
+optsT = DMPopts(Nbasis,αx,αzPT, :time)
+optsP = DMPopts(Nbasis,αx,αzPT, :position)
+@test optsC.βz == αzC/4
 
-y = [zeros(10);linspace(0,1,100); ones(10)]
+y = [linspace(0,1,100); ones(10)]
 T = length(y)
 t = linspace(0,T,T)
 τ = t[end]/3
@@ -26,7 +27,7 @@ g=y[end,:][:]
 
 # Tests canonical ============================================
 
-x = get_sched_sig(:canonical,αx,τ,t,y)
+x = get_sched_sig(:canonical,αx,τ,t,y,g)
 c,σ2    = get_centers_linear(Nbasis,x)
 Ψ = kernel_matrix(x,c,σ2)
 @test size(x) == (T,)
@@ -53,7 +54,7 @@ a = acceleration(dmp,y,ẏ,x,g)
 
 
 # Tests time     ============================================
-x = get_sched_sig(:time,αx,τ,t,y)
+x = get_sched_sig(:time,αx,τ,t,y,g)
 c,σ2    = get_centers_linear(Nbasis,x)
 Ψ = kernel_matrix(x,c,σ2)
 @test size(x) == (T,)
@@ -70,7 +71,7 @@ f = force(dmp,x[1],1)
 @test isfinite(f)
 
 # Tests position ============================================
-x = get_sched_sig(:position,αx,τ,t,y)
+x = get_sched_sig(:position,αx,τ,t,y,g)
 c,σ2    = get_centers_linear(Nbasis,x)
 Ψ = kernel_matrix(x[:,1],c[:,1],σ2[:,1])
 @test size(x) == (T,2)
@@ -100,20 +101,21 @@ a = acceleration(dmp,y,ẏ,x,g)
 
 
 dmp = fit(y,ẏ,ÿ,t,optsC)
-tout,yout,ẏout,xout = solve(dmp,t)
+tout,youtC,ẏout,xout = solve(dmp)
 @test tout == t
-@test abs(yout .- y) |> sum < 3
+@test abs(youtC .- y) |> sum < 2
 @test abs(ẏout .- ẏ) |> sum < 0.3
-plotdmp(dmp)
+# plotdmp(dmp)
 
 dmp = fit(y,ẏ,ÿ,t,optsT)
-tout,yout,ẏout,xout = solve(dmp,t)
-@test abs(yout .- y) |> sum < 3
+tout,youtT,ẏout,xout = solve(dmp)
+@test abs(youtT .- y) |> sum < 2
 @test abs(ẏout .- ẏ) |> sum < 0.3
-plotdmp(dmp)
+# plotdmp(dmp)
 
 dmp = fit(y,ẏ,ÿ,t,optsP)
-tout,yout,ẏout,xout = solve(dmp,t)
-@test abs(yout .- y) |> sum < 3
+tout,youtP,ẏout,xout = solve(dmp)
+@test abs(youtP .- y) |> sum < 6
 @test abs(ẏout .- ẏ) |> sum < 0.3
-plotdmp(dmp)
+# plotdmp(dmp)
+# plotdmpphase(dmp)

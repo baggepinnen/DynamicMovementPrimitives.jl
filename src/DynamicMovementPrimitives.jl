@@ -2,7 +2,7 @@ module DynamicMovementPrimitives
 using ODE, Requires
 
 
-export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plotdmp
+export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plotdmp, plotdmpphase
 
 
 function centraldiff(v::AbstractMatrix)
@@ -68,12 +68,11 @@ function get_centers_linear(Nbasis,x)
     d = ma-mi
     Ni = d./(Nbasis+1)
 
-
     σ2 = zeros(Nbasis,n)
     c = zeros(Nbasis,n)
     for i = 1:n
         σ2[:,i] = d[i]*(0.5/Nbasis)^2 * ones(Nbasis)
-        c[:,i]  = linspace(mi[i]+Ni[i],ma[i]-Ni[i],Nbasis)
+        c[:,i]  = linspace(mi[i]+0Ni[i],ma[i]-0Ni[i],Nbasis)
     end
     return c, σ2
 end
@@ -104,19 +103,18 @@ _1(y::VecOrMat) = y[1,:][:]
 _1(dmp::DMP) = _1(dmp.y)
 _T(dmp::DMP) = size(dmp.y,1)
 
-function get_sched_sig(s,αx,τ,t,y)
-
+function get_sched_sig(s,αx,τ,t,y,g)
     if s == :canonical
         return solve_canonical(αx,τ,t)
     elseif s == :position
-        return y
+        return g'.-y
     elseif s == :time
         return t
     end
     warn("Scheduling signal $s unknown")
     return solve_canonical(αx,τ,t)
 end
-get_sched_sig(dmp::DMP) = get_sched_sig(dmp.opts.sched_sig,dmp.opts.αx,dmp.τ,dmp.t)
+get_sched_sig(dmp::DMP) = get_sched_sig(dmp.opts.sched_sig,dmp.opts.αx,dmp.τ,dmp.t,dmp.g)
 
 
 """
@@ -137,7 +135,7 @@ function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
     αz      = opts.αz
     αx      = opts.αx
     y0      = _1(y)
-    x       = get_sched_sig(opts.sched_sig,αx,τ,t,y)
+    x       = get_sched_sig(opts.sched_sig,αx,τ,t,y,g)
     ft      = τ^2*ÿ - αz*(βz*(g'.-y)-τ*ẏ)
     ξ       = x.*(g-y0)'
     c,σ2    = get_centers_linear(Nbasis,x)
@@ -171,10 +169,18 @@ function force(d::DMP, x)
     end
 end
 
+function force(d::DMP, x,i)
+    if d.opts.sched_sig == :position
+        force_multiple(d,x,i)
+    else
+        force_single(d,x,i)
+    end
+end
+
 function force_single(d::DMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
-    Ψ    = kernel_vector(x, d.c, d.σ2)
+    Ψ  = kernel_vector(x, d.c, d.σ2)
     f = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
@@ -195,7 +201,7 @@ end
 function force_multiple(d::DMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
-    Ψ  = kernel_vector(x[i], d.c[:,i], d.σ2[:,i])
+    Ψ  = kernel_vector(x, d.c[:,i], d.σ2[:,i])
     f  = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
@@ -221,14 +227,6 @@ function force_multiple(d::DMP,x::AbstractMatrix)
         f[:,i] = Ψ*d.w[:,i] .* (x[:,i].*(d.g[i]-y0[i])')
     end
     f
-end
-
-function force(d::DMP,x::Number, i)
-    p = size(d.c,2) # Number of sched signals, can be either 1 or n
-    i = p > 1 ? i : 1
-    y0 = _1(d)
-    Ψ  = kernel_vector(x, d.c[:,i], d.σ2[:,i])
-    f = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
 
@@ -305,7 +303,7 @@ function solve_position(dmp, t, y0, g, solver)
         function time_derivative(t,state)
             local z   = state[1]
             local y   = state[2]
-            zp  = acceleration(dmp, y, z, y,g[i],i)
+            zp  = acceleration(dmp, y, z, g[i]-y,g[i],i)
             yp  = z
             [zp;yp] / τ
         end
@@ -355,6 +353,12 @@ function plotdmp(dmp::DMP; kwargs...)
         Plots.plot!(fig[i,1],tout,[yout[:,i] ẏout[:,i]],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
         Plots.plot!(fig[i,1],tout,[dmp.y[:,i] dmp.ẏ[:,i]],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
     end
+end
+
+function plotdmpphase(dmp::DMP; kwargs...)
+    tout,yout,ẏout,xout = solve(dmp)
+    Plots.plot(yout[:,1],yout[:,2],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
+    Plots.plot!(dmp.y[:,1],dmp.y[:,2],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
 end
 end
 
