@@ -21,7 +21,7 @@ Nbasis  = 15
 αx      = 1.
 opts    = DMPopts(Nbasis,αx,αz)
 
-y       = [zeros(10);linspace(0,1,100); ones(10)]
+y       = [zeros(10);linspace(0,2,100); 2ones(10)]
 T       = length(y)
 t       = linspace(0,T,T)
 h       = t[2]-t[1] # Sample interval
