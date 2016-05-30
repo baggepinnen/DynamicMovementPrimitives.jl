@@ -8,7 +8,7 @@ cpoints = [0.5 -0.5;
         1.5 0;
         1.5 -0.5]
 
-y,yd,ydd = connect_poits(cpoints,20)
+y,yd,ydd = connect_points(cpoints,20)
 q = inverse_kin(y,:up)
 
 

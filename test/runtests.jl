@@ -125,6 +125,8 @@ tout,youtP,ẏout,xout = solve(dmp)
 
 
 # Test twolink
+include("../src/two_link.jl")
+using TwoLink
 p,pd,pdd = traj(0,1,0:100)
 @test p[1] == 0
 @test p[end] == 1
@@ -140,7 +142,7 @@ cpoints = [0.5 -0.5;
         1.5 0;
         1.5 -0.5]
 
-ctraj = connect(cpoints,20)
+ctraj = connect_points(cpoints,20)[1]
 jtraj = inverse_kin(ctraj,:up)
 ctraj2 = forward_kin(jtraj)
 

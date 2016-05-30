@@ -1,7 +1,7 @@
 module TwoLink
 using FixedSizeArrays
 
-export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, V2, connect_poits
+export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, V2, connect_points
 
 typealias V2 Vec{2,Float64}
 
@@ -121,7 +121,7 @@ function traj(q0,q1,t, V)
 
     tb = (q0 - q1 + V*tf)/V
     a = V/tb
-    
+
     p = Array(Float64,size(t))
     pd = Array(Float64,size(t))
     pdd = Array(Float64,size(t))
@@ -131,8 +131,6 @@ function traj(q0,q1,t, V)
             # initial blend
             p[i] = q0 + a/2*t^2
             pd[i] = a*t
-            @show typeof(a)
-            @show typeof(pdd)
             pdd[i] = a
         elseif t <= tf-tb
             # linear motion
@@ -151,7 +149,7 @@ function traj(q0,q1,t, V)
 end
 
 
-function connect_poits(points,ni)
+function connect_points(points,ni)
     fx(i) = traj(points[i,1],points[i+1,1],1:ni)
     fy(i) = traj(points[i,2],points[i+1,2],1:ni)
     n = size(points,1)
