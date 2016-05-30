@@ -119,3 +119,29 @@ tout,youtP,ẏout,xout = solve(dmp)
 @test abs(ẏout .- ẏ) |> sum < 0.3
 # plotdmp(dmp)
 # plotdmpphase(dmp)
+
+
+
+
+
+# Test twolink
+p,pd,pdd = traj(0,1,0:100)
+@test p[1] == 0
+@test p[end] == 1
+@test pd[1] == 0
+@test pd[end] == 0
+@test length(p) == length(pd) == length(pdd) == 101
+
+
+
+
+cpoints = [0.5 -0.5;
+        0.5 0;
+        1.5 0;
+        1.5 -0.5]
+
+ctraj = connect(cpoints,20)
+jtraj = inverse_kin(ctraj,:up)
+ctraj2 = forward_kin(jtraj)
+
+@test ctraj ≈ ctraj2
