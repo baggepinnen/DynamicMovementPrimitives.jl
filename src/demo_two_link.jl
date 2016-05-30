@@ -14,11 +14,10 @@ q = inverse_kin(y,:up)
 
 # Setup ============================================
 Nbasis = 20
-αzC = 25.
-αzPT = 10.
+αz = 25.
 αx = 1.
 
-opts = DMPopts(Nbasis,αx,αzC, :canonical)
+opts = DMPopts(Nbasis,αx,αz, :canonical)
 
 T = size(y,1)
 t = linspace(0,T,T)
@@ -34,10 +33,17 @@ to,qo,zo,xo = solve(dmp)
 yo = forward_kin(qo)
 
 
-fig1 = plot(q, title="Joint space reference and output")
-plot!(qo, l=:dash)
+fig1 = plot(q, xlabel="Time", title="Joint space reference and output", lab="Reference")
+plot!(qo, l=:dash, lab="Fit")
 
-fig2 = plot(y, title="Cartesian space reference and output")
-plot!(yo, l=:dash)
+fig2 = plot(y, xlabel="Time", title="Cartesian space reference and output", lab="Reference")
+plot!(yo, l=:dash, lab="Fit")
 
-subplot(fig1,fig2); gui()
+
+fig3 = plot(q[:,1],q[:,2], xlabel="x", ylabel="y", title="Joint space reference and output", lab="Reference")
+plot!(qo[:,1],qo[:,2], l=:dash, lab="Fit")
+
+fig4 = plot(y[:,1],y[:,2], xlabel="x", ylabel="y", title="Cartesian space reference and output", lab="Reference")
+plot!(yo[:,1],yo[:,2], l=:dash, lab="Fit")
+
+subplot(fig1,fig2,fig3,fig4); gui()
