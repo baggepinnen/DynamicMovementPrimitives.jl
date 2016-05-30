@@ -23,7 +23,7 @@ end
 vv2m(x::Vector) = [x[i][j] for i in eachindex(x), j in eachindex(x[1])]
 
 """
-`DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4)`
+`DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis, αx, αz, βz = αz/4)`\n
 Holds parameters for fitting a DMP
 # Fields
 `Nbasis,αx,αz,βz,sched_sig`\n
