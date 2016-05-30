@@ -246,7 +246,7 @@ function acceleration(d::DMP, y::AbstractMatrix,ẏ::AbstractMatrix,x::AbstractV
 end
 
 """
-`solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _1(dmp), g = dmp.g, solver=ode45)`
+`t,y,z,x = solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _1(dmp), g = dmp.g, solver=ode45)`
 
 `t` time vector
 
