@@ -38,6 +38,10 @@ function kernel_vector(x::Real,c,σ2)
     Ψ
 end
 
+function kernel_vector(dmp::DMP, x::Real)
+    kernel_vector(x, dmp.c, dmp.σ2)
+end
+
 
 function centraldiff(v::AbstractMatrix)
     dv = diff(v)/2
@@ -74,11 +78,13 @@ function plotdmp(dmp::DMP; kwargs...)
         Plots.plot!(fig[i,1],tout,[yout[:,i] ẏout[:,i]],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
         Plots.plot!(fig[i,1],tout,[dmp.y[:,i] dmp.ẏ[:,i]],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
     end
+    Plots.gui()
 end
 
 function plotdmpphase(dmp::DMP; kwargs...)
     tout,yout,ẏout,xout = solve(dmp)
     Plots.plot(yout[:,1],yout[:,2],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
     Plots.plot!(dmp.y[:,1],dmp.y[:,2],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
+    Plots.gui()
 end
 end

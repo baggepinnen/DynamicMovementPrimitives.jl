@@ -1,7 +1,7 @@
 module TwoLink
 using FixedSizeArrays
 
-export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, V2, connect_points, acceleration, time_derivative
+export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, V2, connect_points, acceleration, time_derivative, inertia
 
 typealias V2 Vec{2,Float64}
 
@@ -10,6 +10,10 @@ const m1 = const m2 = 0.2
 const l1 = const l2 = 1
 const k1 = const k2 = 0.00
 const g = 9.82
+
+inertia(q2) = [2*cos(q2)*l1*l2*m2+l2^2*m2+1    cos(q2)*l1*l2*m2 + l2^2*m2;
+cos(q2)*l1*l2*m2 + l2^2*m2     l2^2*m2]
+inertia(q1,q2) = inertia(q2)
 
 signfunc(x) = tanh(0.01x)
 
@@ -35,7 +39,7 @@ function torque(q,qd,qdd)
     τ2 = m2*l1*l2*c2*qdd1 + m2*l1*l2*s2*qd1^2 + m2*l2*g*s12 +
     m2*l2^2*(qdd1 + qdd2) + v2*qd2 + k2*signfunc(qd2)
 
-    V2(τ1,τ2)
+    [τ1,τ2]
 end
 
 """

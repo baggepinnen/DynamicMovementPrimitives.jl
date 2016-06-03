@@ -2,7 +2,7 @@ module DynamicMovementPrimitives
 using ODE, Requires
 
 
-export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plotdmp, plotdmpphase
+export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plotdmp, plotdmpphase, kernel_vector
 
 """
 `DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis, αx, αz, βz = αz/4)`\n
@@ -30,7 +30,7 @@ The result of fitting a DMP
 `opts,g,y,ẏ,ÿ,w,τ,c,σ2`\n
 See example file or the paper by Ijspeert et al. 2013
 """
-immutable DMP
+type DMP
     opts::DMPopts
     g::Vector{Float64}
     y::Matrix{Float64}
@@ -45,9 +45,15 @@ end
 
 include("utilities.jl")
 
+"""
+`solve_canonical(αx,τ,T::AbstractVector)`\n
+`solve_canonical(αx,τ,T::Real)`\n
+`solve_canonical(dmp::DMP [,t])`
+"""
 solve_canonical(αx,τ,T::AbstractVector) = exp(-αx/τ.*T)
 solve_canonical(αx,τ,T::Real) = solve_canonical(αx,τ,(0:T-1))
 solve_canonical(dmp::DMP,t) = solve_canonical(dmp.opts.αx, dmp.τ, t)
+solve_canonical(dmp::DMP) = solve_canonical(dmp.opts.αx, dmp.τ, dmp.t)
 
 
 function get_sched_sig(s,αx,τ,t,y,g)
@@ -179,17 +185,17 @@ end
 
 function acceleration(d::DMP, y::Number,ẏ::Number,x::Number,g::Number,i=1)
     f = force(d,x,i)
-    d.opts.αz*(d.opts.βz*(g-y)-ẏ)+f
+    (d.opts.αz*(d.opts.βz*(g-y)-d.τ*ẏ)+f)/d.τ^2
 end
 
-function acceleration(d::DMP, y::AbstractVector,ẏ::AbstractVector,x ,g::AbstractVector)
+function acceleration(d::DMP, y::AbstractVector,ẏ::AbstractVector,x ,g::AbstractVector = d.g)
     f = force(d,x)
-    d.opts.αz*(d.opts.βz*(g-y)-ẏ)+f
+    (d.opts.αz*(d.opts.βz*(g-y)-d.τ*ẏ)+f)/d.τ^2
 end
 
 function acceleration(d::DMP, y::AbstractMatrix,ẏ::AbstractMatrix,x::AbstractVecOrMat,g::AbstractVector)
     f = force(d,x)
-    d.opts.αz*(d.opts.βz*(g'.-y)-ẏ)+f
+    (d.opts.αz*(d.opts.βz*(g'.-y)-d.τ*ẏ)+f)/d.τ^2
 end
 
 """
@@ -227,13 +233,13 @@ function solve_canonical(dmp, t, y0, g, solver)
             local x   = state[3]
             zp  = acceleration(dmp, y, z, x,g[i],i)
             yp  = z
-            xp  = -αx * x
-            [zp;yp;xp] / τ
+            xp  = -αx/τ * x
+            [zp;yp;xp]
         end
         state0  = [0; y0[i]; 1.]
         tout,state_history = solver(time_derivative, state0, t,points=:specified)
         res = vv2m(state_history)
-        z[:,i] = res[:,1]/τ
+        z[:,i] = res[:,1]
         y[:,i] = res[:,2]
         x = res[:,3] # TODO: se till att denna är samma för alla DOF
     end
@@ -252,12 +258,12 @@ function solve_position(dmp, t, y0, g, solver)
             local y   = state[2]
             zp  = acceleration(dmp, y, z, g[i]-y,g[i],i)
             yp  = z
-            [zp;yp] / τ
+            [zp;yp]
         end
         state0  = [0; y0[i]]
         tout,state_history = solver(time_derivative, state0, t,points=:specified)
         res = vv2m(state_history)
-        z[:,i] = res[:,1]/τ
+        z[:,i] = res[:,1]
         y[:,i] = res[:,2]
     end
     t,y,z,y
@@ -275,12 +281,12 @@ function solve_time(dmp, t, y0, g, solver)
             local y   = state[2]
             zp  = acceleration(dmp, y, z, t ,g[i],i)
             yp  = z
-            [zp;yp] / τ
+            [zp;yp]
         end
         state0  = [0; y0[i]]
         tout,state_history = solver(time_derivative, state0, t,points=:specified)
         res = vv2m(state_history)
-        z[:,i] = res[:,1]/τ
+        z[:,i] = res[:,1]
         y[:,i] = res[:,2]
     end
     t,y,z,t
