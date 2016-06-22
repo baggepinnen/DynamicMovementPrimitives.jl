@@ -15,9 +15,9 @@ See example file or the paper by Ijspeert et al. 2013
 """
 immutable DMPopts
     Nbasis::Int
-    αx::Real
-    αz::Real
-    βz::Real
+    αx::Float64
+    αz::Float64
+    βz::Float64
     sched_sig::Symbol
 end
 
@@ -236,7 +236,7 @@ function solve_canonical(dmp, t, y0, g, solver)
             xp  = -αx/τ * x
             [zp;yp;xp]
         end
-        state0  = [0; y0[i]; 1.]
+        state0  = [dmp.ẏ[1,i]; y0[i]; 1.]
         tout,state_history = solver(time_derivative, state0, t,points=:specified)
         res = vv2m(state_history)
         z[:,i] = res[:,1]

@@ -11,8 +11,11 @@ const l1 = const l2 = 1
 const k1 = const k2 = 0.00
 const g = 9.82
 
-inertia(q2) = [2*cos(q2)*l1*l2*m2+l2^2*m2+1    cos(q2)*l1*l2*m2 + l2^2*m2;
-cos(q2)*l1*l2*m2 + l2^2*m2     l2^2*m2]
+function inertia(q2)
+    x = cos(q2)*l1*l2*m2 + l2^2*m2
+    [2*cos(q2)*l1*l2*m2+l2^2*m2+1    x;
+              x                    l2^2*m2]
+end
 inertia(q1,q2) = inertia(q2)
 
 signfunc(x) = tanh(0.01x)
@@ -48,8 +51,6 @@ end
 Model
 """
 function acceleration(q1,q2,qd1,qd2,τ1,τ2)
-    # v1 = v2 = k1 = k2 = m1 = m2 = l1 = l2 = 1
-
     c2 = cos(q2)
     s1 = sin(q1)
     s2 = sin(q2)
