@@ -15,7 +15,6 @@ using DynamicMovementPrimitives
 ## Usage
 ```julia
 using DynamicMovementPrimitives
-using Plots
 Nbasis  = 15
 αz      = 25.
 αx      = 1.
@@ -31,5 +30,6 @@ ÿ       = centraldiff(ẏ) /h
 dmp     = fit(y,ẏ,ÿ,t,opts)
 
 tout,yout,ẏout,xout = solve(dmp,t) # Generate trajectory, see ?solve for options
-plotdmp(dmp) # Requires Plots.jl, plots the trajectory from solve with default options
+plot(dmp) # Requires Plots.jl, plots the trajectory from solve with default options
+plot(dmp,true)
 ```

@@ -65,26 +65,79 @@ _1(y::VecOrMat) = y[1,:][:]
 _1(dmp::DMP) = _1(dmp.y)
 _T(dmp::DMP) = size(dmp.y,1)
 
-
-plotdmp(dmp::DMP, args...) = println("To plot a DMP, install package Plots.jl or call tout,yout,ẏout,xout = solve(dmp) to produce your own plot.")
-
-@require Plots begin
 math(sl) = map(s->string("\$",s,"\$") ,sl)
-function plotdmp(dmp::DMP; kwargs...)
-    tout,yout,ẏout,xout = solve(dmp)
+
+"""
+plot(dmp::DMP, phase::Bool=false; [y0])
+"""
+@recipe function plotdmp(dmp::DMP, phase::Bool=false; y0 = _1(dmp))
     n = size(dmp.y,2)
-    fig = Plots.subplot(n = n, nc = 1)
-    for i = 1:n
-        Plots.plot!(fig[i,1],tout,[yout[:,i] ẏout[:,i]],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
-        Plots.plot!(fig[i,1],tout,[dmp.y[:,i] dmp.ẏ[:,i]],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
+    if n < 2 && phase
+        warn("Phase plotting only supported for DMP of dimension greater than 1")
+        phase = false
     end
-    Plots.gui()
+    layout := (n,1)
+    tout,yout,ẏout,xout = solve(dmp, y0=y0)
+    delete!(d,:y0)
+    if phase
+        xguide := "Position 1"
+        yguide := "Position 2"
+    else
+        xguide := "Time"
+        yguide := "Output"
+    end
+    for i = 1:n
+        @series begin
+            title       := "Dynamic Movement Primitive $i"
+            subplot     := i
+            seriestype  := :path
+            label       := ["y_{out}" "ẏ_{out}"] |> math
+            if phase
+                xguide := "Position 1"
+                yguide := "Position 2"
+                (yout[:,1], yout[:,2])
+            else
+                xguide := "Time"
+                yguide := "Output"
+                (tout, [yout[:,i] ẏout[:,i]])
+            end
+
+        end
+        @series begin
+            title       := "Dynamic Movement Primitive $i"
+            subplot     := i
+            seriestype  := :path
+            linestyle   := :dash
+            label       := ["y" "ẏ"] |> math
+            phase ? (dmp.y[:,1], dmp.y[:,2]) : (tout, [dmp.y[:,i] dmp.ẏ[:,i]])
+        end
+    end
+
 end
 
-function plotdmpphase(dmp::DMP; kwargs...)
-    tout,yout,ẏout,xout = solve(dmp)
-    Plots.plot(yout[:,1],yout[:,2],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
-    Plots.plot!(dmp.y[:,1],dmp.y[:,2],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
-    Plots.gui()
-end
-end
+
+
+
+
+# plotdmp(dmp::DMP, args...) = println("To plot a DMP, install package Plots.jl or call tout,yout,ẏout,xout = solve(dmp) to produce your own plot.")
+#
+# @require Plots begin
+# math(sl) = map(s->string("\$",s,"\$") ,sl)
+# function plotdmp(dmp::DMP; kwargs...)
+#     tout,yout,ẏout,xout = solve(dmp)
+#     n = size(dmp.y,2)
+#     fig = Plots.plot(layout = (n,1))
+#     for i = 1:n
+#         Plots.plot!(tout,[yout[:,i] ẏout[:,i]],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
+#         Plots.plot!(tout,[dmp.y[:,i] dmp.ẏ[:,i]],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
+#     end
+#     Plots.gui()
+# end
+#
+# function plotdmpphase(dmp::DMP; kwargs...)
+#     tout,yout,ẏout,xout = solve(dmp)
+#     Plots.plot(yout[:,1],yout[:,2],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
+#     Plots.plot!(dmp.y[:,1],dmp.y[:,2],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
+#     Plots.gui()
+# end
+# end

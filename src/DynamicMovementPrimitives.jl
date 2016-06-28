@@ -1,15 +1,16 @@
 module DynamicMovementPrimitives
-using ODE, Requires
+using ODE, Requires, RecipesBase
 
 
-export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plotdmp, plotdmpphase, kernel_vector
+export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, kernel_vector
 
 """
 `DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis, αx, αz, βz = αz/4)`\n
 Holds parameters for fitting a DMP
 # Fields
-`Nbasis,αx,αz,βz,sched_sig`\n
-`sched_sig` can be chosen as `:canonical` (default), `:time` or `position`
+`Nbasis,αx,αz,βz,sched_sig,fitmethod`\n
+`sched_sig` can be chosen as `:canonical` (default), `:time` or `position`\n
+`fitmethod` can be chosen as `:lwr` or `:leastsquares`
 
 See example file or the paper by Ijspeert et al. 2013
 """
@@ -19,10 +20,11 @@ immutable DMPopts
     αz::Float64
     βz::Float64
     sched_sig::Symbol
+    fitmethod::Symbol
 end
 
-DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4,:position)
-DMPopts(Nbasis,αx,αz,sched_sig::Symbol) = DMPopts(Nbasis,αx,αz,αz/4,sched_sig)
+DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4,:canonical)
+DMPopts(Nbasis,αx,αz,sched_sig::Symbol=:canonical,fitmethod::Symbol = :lwr) = DMPopts(Nbasis,αx,αz,αz/4,sched_sig,fitmethod)
 
 """
 The result of fitting a DMP
@@ -79,6 +81,9 @@ Fits a DMP to data\n
 see also `solve`, `plotdmp`
 """
 function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
+    if opts.sched_sig != :canonical
+        error("Scheduling signal $(opts.sched_sig) currently not supported")
+    end
     T       = t[end]
     N       = size(y,1)
     n       = isa(y,Matrix) ? size(y,2) : 1
@@ -100,9 +105,13 @@ function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
         if opts.sched_sig == :position
             Ψ = kernel_matrix(x[:,i],c[:,i],σ2[:,i])
         end
-        for j = 1:Nbasis
-            sTΓ = ξ[:,i].*Ψ[:,j]
-            w[j,i] = vecdot(sTΓ,ft[:,i])/vecdot(sTΓ,ξ[:,i])
+        if opts.fitmethod == :leastsquares
+            w = Ψ\(ft./ξ)
+        else
+            for j = 1:Nbasis
+                sTΓ = ξ[:,i].*Ψ[:,j]
+                w[j,i] = vecdot(sTΓ,ft[:,i])/vecdot(sTΓ,ξ[:,i])
+            end
         end
     end
     return DMP(opts, g, y, ẏ, ÿ,t, w, τ,c,σ2)
