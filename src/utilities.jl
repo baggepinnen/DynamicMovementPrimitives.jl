@@ -45,8 +45,8 @@ end
 
 function centraldiff(v::AbstractMatrix)
     dv = diff(v)/2
-    a1 = [dv[1,:];dv]
-    a2 = [dv;dv[end,:]]
+    a1 = [dv[[1],:];dv]
+    a2 = [dv;dv[[size(dv,1)],:]]
     a = a1+a2
 end
 
