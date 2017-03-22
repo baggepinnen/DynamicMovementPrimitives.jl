@@ -1,20 +1,34 @@
 module TwoLink
 using FixedSizeArrays
 
-export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, V2, connect_points
+export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, V2, connect_points, acceleration, time_derivative, inertia
 
 typealias V2 Vec{2,Float64}
 
-const v1 = v2 = k1 = k2 = m1 = m2 = l1 = l2 = 1
-const g = 9.82
+const v1 = const v2 = 2
+const m1 = const m2 = 0.2
+const l1 = const l2 = 1
+const k1 = const k2 = 0.00
+const g = 1.82
 
+function inertia(q2)
+    x = cos(q2)*l1*l2*m2 + l2^2*m2
+    [2*cos(q2)*l1*l2*m2+l2^2*m2+1    x;
+              x                    l2^2*m2]
+end
+inertia(q1,q2) = inertia(q2)
+
+signfunc(x) = tanh(0.01x)
+
+"""
+`V2(τ1,τ2) = torque(q,qd,qdd)`\n
+Inverse model
+"""
 function torque(q,qd,qdd)
+    q1,q2 = q
+    qd1,qd2 = qd
+    qdd1,qdd2 = qdd
 
-    q1,q2 = q[1],q[2]
-    qd1,qd2 = qd[1],qd[2]
-    qdd1,qdd2 = qdd[1],qdd[2]
-
-    c1 = cos(q1)
     c2 = cos(q2)
     s1 = sin(q1)
     s2 = sin(q2)
@@ -23,14 +37,57 @@ function torque(q,qd,qdd)
     τ1 = m2*l2^2*(qdd1+qdd2) + m2*l1*l2*c2*(2qdd1+qdd2) +
     (m1+m2)*l1^2+qdd1 - m2*l1*l2*s2*qd2^2 - 2m2*l1*l2*s2*qd1*qd2 +
     m2*l2*g*s12 + (m1+m2)*l1*g*s1 + v1*qd1 +
-    k1*sign(qd1)
+    k1*signfunc(qd1)
 
     τ2 = m2*l1*l2*c2*qdd1 + m2*l1*l2*s2*qd1^2 + m2*l2*g*s12 +
-    m2*l2^2*(qdd1 + qdd2) + v2*qd2 + k2*sign(qd2)
+    m2*l2^2*(qdd1 + qdd2) + v2*qd2 + k2*signfunc(qd2)
 
-    V2(τ1,τ2)
-
+    [τ1,τ2]
 end
+
+"""
+`q̈ = acceleration(τ::V2, q::V2, qd::V2)`\n
+`q̈1,q̈2 = acceleration(q1,q2,qd1,qd2,τ1,τ2)`\n
+Model
+"""
+function acceleration(q1,q2,qd1,qd2,τ1,τ2)
+    c2 = cos(q2)
+    s1 = sin(q1)
+    s2 = sin(q2)
+    s12 = sin(q1+q2)
+
+    qdd1 = (-l2*(g*l1*m1*s1 + g*l1*m2*s1 + g*l2*m2*s12 + k1*signfunc(qd1) + l1^2*m1 + l1^2*m2 - 2*l1*l2*m2*qd1*qd2*s2 - l1*l2*m2*qd2^2*s2 + qd1*v1 - τ1) + (c2*l1 + l2)*(g*l2*m2*s12 + k2*signfunc(qd2) + l1*l2*m2*qd1^2*s2 + qd2*v2 - τ2))/(l2*(2*c2*l1*l2*m2 + l2^2*m2 - m2*(c2*l1 + l2)^2 + 1))
+
+    qdd2 = (l2*m2*(c2*l1 + l2)*(g*l1*m1*s1 + g*l1*m2*s1 + g*l2*m2*s12 + k1*signfunc(qd1) + l1^2*m1 + l1^2*m2 - 2*l1*l2*m2*qd1*qd2*s2 - l1*l2*m2*qd2^2*s2 + qd1*v1 - τ1) - (2*c2*l1*l2*m2 + l2^2*m2 + 1)*(g*l2*m2*s12 + k2*sign(qd2) + l1*l2*m2*qd1^2*s2 + qd2*v2 - τ2))/(l2^2*m2*(2*c2*l1*l2*m2 + l2^2*m2 - m2*(c2*l1 + l2)^2 + 1))
+
+    qdd1,qdd2
+end
+
+function acceleration(τ::V2, q::V2, qd::V2)
+    q1,q2 = q
+    qd1,qd2 = qd
+    τ1,τ2 = τ
+    V2(acceleration(q1,q2,qd1,qd2,τ1,τ2))
+end
+
+function time_derivative(state, τ)
+    qdd1,qdd2 = acceleration(state[1],state[2],state[3],state[4],τ[1],τ[2])
+    return [state[3],state[4], qdd1,qdd2]
+end
+
+function time_derivative(state, τ, deriv)
+    qdd1,qdd2 = acceleration(state[1],state[2],state[3],state[4],τ[1],τ[2])
+    deriv[:] = [state[3],state[4], qdd1,qdd2]
+end
+
+# @syms v1 v2 k1 k2 m1 m2 l1 l2 g q1 q2 qd1 qd2 qdd1 qdd2 t1 t2 c1 c2 s1 s2 s12
+# tau1 = m2*l2^2*(qdd1+qdd2) + m2*l1*l2*c2*(2qdd1+qdd2) +
+# (m1+m2)*l1^2+qdd1 - m2*l1*l2*s2*qd2^2 - 2m2*l1*l2*s2*qd1*qd2 +
+# m2*l2*g*s12 + (m1+m2)*l1*g*s1 + v1*qd1 +
+# k1*sign(qd1)
+# tau2 = m2*l1*l2*c2*qdd1 + m2*l1*l2*s2*qd1^2 + m2*l2*g*s12 +
+# m2*l2^2*(qdd1 + qdd2) + v2*qd2 + k2*sign(qd2)
+# sol = solve([t1-tau1,t2-tau2],[qdd1,qdd2])
 
 function forward_kin(q)
     q1,q2 = q[1],(q[1]+q[2])
@@ -92,14 +149,11 @@ function inverse_kin(ctraj::Matrix, dir = :up)
     p
 end
 
-
-
 function traj(q0,q1,t)
     tf = maximum(t)
     V = (q1-q0)/tf * 1.5
     traj(q0,q1,t, V)
 end
-
 
 function traj(q0,q1,t, V)
 
@@ -129,25 +183,24 @@ function traj(q0,q1,t, V)
     for (i,t) = enumerate(t)
         if t <= tb
             # initial blend
-            p[i] = q0 + a/2*t^2
-            pd[i] = a*t
+            p[i]   = q0 + a/2*t^2
+            pd[i]  = a*t
             pdd[i] = a
-        elseif t <= tf-tb
+        elseif t < = tf-tb
             # linear motion
-            p[i] = (q1+q0-V*tf)/2 + V*t
-            pd[i] = V
+            p[i]   = (q1+q0-V*tf)/2 + V*t
+            pd[i]  = V
             pdd[i] = 0
         else
             # final blend
-            p[i] = q1 - a/2*tf^2 + a*tf*t - a/2*t^2
-            pd[i] = a*tf - a*t;
+            p[i]   = q1 - a/2*tf^2 + a*tf*t - a/2*t^2
+            pd[i]  = a*tf - a*t;
             pdd[i] = -a;
         end
     end
     return p, pd, pdd
 
 end
-
 
 function connect_points(points,ni)
     fx(i) = traj(points[i,1],points[i+1,1],1:ni)
@@ -167,10 +220,6 @@ function connect_points(points,ni)
 
     end
     p, pd, pdd
-
 end
-
-
-
 
 end

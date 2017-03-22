@@ -54,47 +54,47 @@ a = acceleration(dmp,y,ẏ,x,g)
 
 
 # Tests time     ============================================
-x = get_sched_sig(:time,αx,τ,t,y,g)
-c,σ2    = get_centers_linear(Nbasis,x)
-Ψ = kernel_matrix(x,c,σ2)
-@test size(x) == (T,)
-@test size(c) == (Nbasis,1)
-@test size(σ2) == (Nbasis,1)
-@test size(Ψ) == (T,Nbasis)
-
-dmp = fit(y,ẏ,ÿ,t,optsT)
-f = force(dmp,x)
-@test size(f) == (T,2)
-@test all(isfinite(f))
-f = force(dmp,x[1],1)
-@test isa(f,Number)
-@test isfinite(f)
+# x = get_sched_sig(:time,αx,τ,t,y,g)
+# c,σ2    = get_centers_linear(Nbasis,x)
+# Ψ = kernel_matrix(x,c,σ2)
+# @test size(x) == (T,)
+# @test size(c) == (Nbasis,1)
+# @test size(σ2) == (Nbasis,1)
+# @test size(Ψ) == (T,Nbasis)
+#
+# dmp = fit(y,ẏ,ÿ,t,optsT)
+# f = force(dmp,x)
+# @test size(f) == (T,2)
+# @test all(isfinite(f))
+# f = force(dmp,x[1],1)
+# @test isa(f,Number)
+# @test isfinite(f)
 
 # Tests position ============================================
-x = get_sched_sig(:position,αx,τ,t,y,g)
-c,σ2    = get_centers_linear(Nbasis,x)
-Ψ = kernel_matrix(x[:,1],c[:,1],σ2[:,1])
-@test size(x) == (T,2)
-@test size(c) == (Nbasis,2)
-@test size(σ2) == (Nbasis,2)
-@test size(Ψ) == (T,Nbasis)
-
-dmp = fit(y,ẏ,ÿ,t,optsP)
-f = force(dmp,x)
-@test size(f) == (T,2)
-@test all(isfinite(f))
-f = force(dmp,x[1],1)
-@test isa(f,Number)
-@test isfinite(f)
-
-a = acceleration(dmp,y[1],ẏ[1],x[1],g[1],1)
-@test isa(a,Number)
-@test isfinite(a)
-a = acceleration(dmp,_1(y),_1(ẏ),x[1,:][:],g)
-@test size(a) == (2,)
-a = acceleration(dmp,y,ẏ,x,g)
-@test size(a) == (T,2)
-@test all(isfinite(a))
+# x = get_sched_sig(:position,αx,τ,t,y,g)
+# c,σ2    = get_centers_linear(Nbasis,x)
+# Ψ = kernel_matrix(x[:,1],c[:,1],σ2[:,1])
+# @test size(x) == (T,2)
+# @test size(c) == (Nbasis,2)
+# @test size(σ2) == (Nbasis,2)
+# @test size(Ψ) == (T,Nbasis)
+#
+# dmp = fit(y,ẏ,ÿ,t,optsP)
+# f = force(dmp,x)
+# @test size(f) == (T,2)
+# @test all(isfinite(f))
+# f = force(dmp,x[1],1)
+# @test isa(f,Number)
+# @test isfinite(f)
+#
+# a = acceleration(dmp,y[1],ẏ[1],x[1],g[1],1)
+# @test isa(a,Number)
+# @test isfinite(a)
+# a = acceleration(dmp,_1(y),_1(ẏ),x[1,:][:],g)
+# @test size(a) == (2,)
+# a = acceleration(dmp,y,ẏ,x,g)
+# @test size(a) == (T,2)
+# @test all(isfinite(a))
 
 
 
@@ -107,18 +107,18 @@ tout,youtC,ẏout,xout = solve(dmp)
 @test abs(ẏout .- ẏ) |> sum < 0.3
 # plotdmp(dmp)
 
-dmp = fit(y,ẏ,ÿ,t,optsT)
-tout,youtT,ẏout,xout = solve(dmp)
-@test abs(youtT .- y) |> sum < 2
-@test abs(ẏout .- ẏ) |> sum < 0.3
-# plotdmp(dmp)
+# dmp = fit(y,ẏ,ÿ,t,optsT)
+# tout,youtT,ẏout,xout = solve(dmp)
+# @test abs(youtT .- y) |> sum < 2
+# @test abs(ẏout .- ẏ) |> sum < 0.3
+# # plotdmp(dmp)
 
-dmp = fit(y,ẏ,ÿ,t,optsP)
-tout,youtP,ẏout,xout = solve(dmp)
-@test abs(youtP .- y) |> sum < 6
-@test abs(ẏout .- ẏ) |> sum < 0.3
-# plotdmp(dmp)
-# plotdmpphase(dmp)
+# dmp = fit(y,ẏ,ÿ,t,optsP)
+# tout,youtP,ẏout,xout = solve(dmp)
+# @test abs(youtP .- y) |> sum < 6
+# @test abs(ẏout .- ẏ) |> sum < 0.3
+# # plotdmp(dmp)
+# # plotdmpphase(dmp)
 
 
 

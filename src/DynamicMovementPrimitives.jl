@@ -1,46 +1,34 @@
 module DynamicMovementPrimitives
-using ODE, Requires
+using ODE, Requires, RecipesBase
 
 
-export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, plotdmp, plotdmpphase
+export DMP, DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, kernel_vector, plotdmp, plotdmpphase, euler
 
-
-function centraldiff(v::AbstractMatrix)
-    dv = diff(v)/2
-    a1 = [dv[1,:];dv]
-    a2 = [dv;dv[end,:]]
-    a = a1+a2
-end
-
-function centraldiff(v::AbstractVector)
-    dv = diff(v)/2
-    a1 = [dv[1];dv]
-    a2 = [dv;dv[end]]
-    a = a1+a2
-end
-
-"""Takes an n vector of m vectors and creates a n×m matrix"""
-vv2m(x::Vector) = [x[i][j] for i in eachindex(x), j in eachindex(x[1])]
+export DMP2dofopts, DMP2dof
 
 """
 `DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis, αx, αz, βz = αz/4)`\n
 Holds parameters for fitting a DMP
 # Fields
-`Nbasis,αx,αz,βz,sched_sig`\n
-`sched_sig` can be chosen as `:canonical` (default), `:time` or `position`
+`Nbasis,αx,αz,βz,sched_sig,fitmethod`\n
+`sched_sig` can be chosen as `:canonical` (default), `:time` or `position`\n
+`fitmethod` can be chosen as `:lwr` or `:leastsquares`
 
 See example file or the paper by Ijspeert et al. 2013
 """
 immutable DMPopts
     Nbasis::Int
-    αx::Real
-    αz::Real
-    βz::Real
+    αx::Float64
+    αz::Float64
+    βz::Float64
     sched_sig::Symbol
+    fitmethod::Symbol
 end
 
-DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4,:position)
-DMPopts(Nbasis,αx,αz,sched_sig::Symbol) = DMPopts(Nbasis,αx,αz,αz/4,sched_sig)
+DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4,:canonical)
+DMPopts(Nbasis,αx,αz,sched_sig::Symbol=:canonical,fitmethod::Symbol = :lwr) = DMPopts(Nbasis,αx,αz,αz/4,sched_sig,fitmethod)
+
+abstract AbstractDMP
 
 """
 The result of fitting a DMP
@@ -48,7 +36,7 @@ The result of fitting a DMP
 `opts,g,y,ẏ,ÿ,w,τ,c,σ2`\n
 See example file or the paper by Ijspeert et al. 2013
 """
-immutable DMP
+type DMP <: AbstractDMP
     opts::DMPopts
     g::Vector{Float64}
     y::Matrix{Float64}
@@ -61,47 +49,18 @@ immutable DMP
     σ2::VecOrMat{Float64}
 end
 
-function get_centers_linear(Nbasis,x)
-    ma = maximum(x,1)
-    mi = minimum(x,1)
-    n = size(x,2)
-    d = ma-mi
-    Ni = d./(Nbasis+1)
+include("utilities.jl")
 
-    σ2 = zeros(Nbasis,n)
-    c = zeros(Nbasis,n)
-    for i = 1:n
-        σ2[:,i] = d[i]*(0.5/Nbasis)^2 * ones(Nbasis)
-        c[:,i]  = linspace(mi[i]+0Ni[i],ma[i]-0Ni[i],Nbasis)
-    end
-    return c, σ2
-end
-
-# function get_centers_log(Nbasis)
-#     Ni = 1/(Nbasis+1)
-#     return (logspace(log10(Ni),log10(1-Ni),Nbasis))[end:-1:1]
-# end
-
-comp(x) = (x)
-
-function kernel_matrix(x::AbstractVecOrMat,c,σ2)
-    Ψ = Float64[exp(-1/(2σ2[j])*(comp(x)-(c[j]))^2) for x in x, j in eachindex(c)]
-    Ψ ./= sum(Ψ,2)
-    Ψ
-end
-
-function kernel_vector(x::Real,c,σ2)
-    Ψ = Float64[exp(-1/(2σ2[j])*(comp(x)-(c[j]))^2) for j in eachindex(c)]
-    Ψ ./= sum(Ψ)
-    Ψ
-end
-
+"""
+`solve_canonical(αx,τ,T::AbstractVector)`\n
+`solve_canonical(αx,τ,T::Real)`\n
+`solve_canonical(dmp::DMP [,t])`
+"""
 solve_canonical(αx,τ,T::AbstractVector) = exp(-αx/τ.*T)
 solve_canonical(αx,τ,T::Real) = solve_canonical(αx,τ,(0:T-1))
 solve_canonical(dmp::DMP,t) = solve_canonical(dmp.opts.αx, dmp.τ, t)
-_1(y::VecOrMat) = y[1,:][:]
-_1(dmp::DMP) = _1(dmp.y)
-_T(dmp::DMP) = size(dmp.y,1)
+solve_canonical(dmp::DMP) = solve_canonical(dmp.opts.αx, dmp.τ, dmp.t)
+
 
 function get_sched_sig(s,αx,τ,t,y,g)
     if s == :canonical
@@ -126,6 +85,9 @@ Fits a DMP to data\n
 see also `solve`, `plotdmp`
 """
 function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
+    if opts.sched_sig != :canonical
+        error("Scheduling signal $(opts.sched_sig) currently not supported")
+    end
     T       = t[end]
     N       = size(y,1)
     n       = isa(y,Matrix) ? size(y,2) : 1
@@ -147,9 +109,13 @@ function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
         if opts.sched_sig == :position
             Ψ = kernel_matrix(x[:,i],c[:,i],σ2[:,i])
         end
-        for j = 1:Nbasis
-            sTΓ = ξ[:,i].*Ψ[:,j]
-            w[j,i] = vecdot(sTΓ,ft[:,i])/vecdot(sTΓ,ξ[:,i])
+        if opts.fitmethod == :leastsquares
+            w = Ψ\(ft./ξ)
+        else # LWR
+            for j = 1:Nbasis
+                sTΓ = ξ[:,i].*Ψ[:,j]
+                w[j,i] = vecdot(sTΓ,ft[:,i])/vecdot(sTΓ,ξ[:,i])
+            end
         end
     end
     return DMP(opts, g, y, ẏ, ÿ,t, w, τ,c,σ2)
@@ -161,7 +127,7 @@ end
 Calculate the forcing term for `dmp` when the phase variable is `x`\n
 The return value will be an `n` Vector or `T×n` Matrix depending on `typeof(x)`
 """
-function force(d::DMP, x)
+function force(d::AbstractDMP, x)
     if d.opts.sched_sig == :position
         force_multiple(d,x)
     else
@@ -169,7 +135,7 @@ function force(d::DMP, x)
     end
 end
 
-function force(d::DMP, x,i)
+function force(d::AbstractDMP, x,i)
     if d.opts.sched_sig == :position
         force_multiple(d,x,i)
     else
@@ -177,35 +143,35 @@ function force(d::DMP, x,i)
     end
 end
 
-function force_single(d::DMP,x::Number, i)
+function force_single(d::AbstractDMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
     Ψ  = kernel_vector(x, d.c, d.σ2)
     f = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
-function force_single(d::DMP,x::Number)
+function force_single(d::AbstractDMP,x::Number)
     # Point case
     y0 = _1(d)
     Ψ  = kernel_matrix([x], d.c, d.σ2)
     f  = (Ψ*d.w)[:] .* (x*(d.g-y0))
 end
 
-function force_single(d::DMP,x::AbstractVector)
+function force_single(d::AbstractDMP,x::AbstractVector)
     # Trajectory case
     y0 = _1(d)
     Ψ    = kernel_matrix(x, d.c, d.σ2)
     f = Ψ*d.w .* (x.*(d.g-y0)')
 end
 
-function force_multiple(d::DMP,x::Number, i)
+function force_multiple(d::AbstractDMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
     Ψ  = kernel_vector(x, d.c[:,i], d.σ2[:,i])
     f  = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
-function force_multiple(d::DMP,x::AbstractVector)
+function force_multiple(d::AbstractDMP,x::AbstractVector)
     # Point case
     n = size(d.c,2) # Number of DOF
     y0 = _1(d)
@@ -217,7 +183,7 @@ function force_multiple(d::DMP,x::AbstractVector)
     f
 end
 
-function force_multiple(d::DMP,x::AbstractMatrix)
+function force_multiple(d::AbstractDMP,x::AbstractMatrix)
     # Trajectory case
     T,n = size(x)
     y0 = _1(d)
@@ -232,21 +198,21 @@ end
 
 function acceleration(d::DMP, y::Number,ẏ::Number,x::Number,g::Number,i=1)
     f = force(d,x,i)
-    d.opts.αz*(d.opts.βz*(g-y)-ẏ)+f
+    (d.opts.αz*(d.opts.βz*(g-y)-d.τ*ẏ)+f)/d.τ^2
 end
 
-function acceleration(d::DMP, y::AbstractVector,ẏ::AbstractVector,x ,g::AbstractVector)
+function acceleration(d::DMP, y::AbstractVector,ẏ::AbstractVector,x ,g::AbstractVector = d.g)
     f = force(d,x)
-    d.opts.αz*(d.opts.βz*(g-y)-ẏ)+f
+    (d.opts.αz*(d.opts.βz*(g-y)-d.τ*ẏ)+f)/d.τ^2
 end
 
 function acceleration(d::DMP, y::AbstractMatrix,ẏ::AbstractMatrix,x::AbstractVecOrMat,g::AbstractVector)
     f = force(d,x)
-    d.opts.αz*(d.opts.βz*(g'.-y)-ẏ)+f
+    (d.opts.αz*(d.opts.βz*(g'.-y)-d.τ*ẏ)+f)/d.τ^2
 end
 
 """
-`t,y,z,x = solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _1(dmp), g = dmp.g, solver=ode45)`
+`t,y,z,x = solve(dmp, t = 0:length(dmp.t)-1; y0 = _1(dmp), g = dmp.g, solver=ode45)`
 
 `t` time vector
 
@@ -254,10 +220,11 @@ end
 `y0` start position, defaults to the initial point in training data from `dmp`
 `g` goal, defaults to goal from `dmp`\n
 `solver` the ode solver to use, see https://github.com/JuliaLang/ODE.jl \n
+The default solver is `solver=ode54`, a faster alternative is `solver=euler`
 
 see also `plotdmp`
 """
-function solve(dmp::DMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
+function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
     if dmp.opts.sched_sig == :position
         return solve_position(dmp, t, y0, g, solver)
     elseif dmp.opts.sched_sig == :time
@@ -266,13 +233,13 @@ function solve(dmp::DMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
     solve_canonical(dmp, t, y0, g, solver)
 end
 
-function solve_canonical(dmp, t, y0, g, solver)
-    T,n     = size(dmp.y)
-    αx      = dmp.opts.αx
-    τ       = dmp.τ
-    z       = zeros(T,n)
-    y       = zeros(T,n)
-    x       = zeros(T)
+function solve_canonical(dmp::DMP, t, y0, g, solver)
+    T,n = size(dmp.y)
+    αx  = dmp.opts.αx
+    τ   = dmp.τ
+    z   = zeros(T,n)
+    y   = zeros(T,n)
+    x   = zeros(T)
     for i = 1:n
         function time_derivative(t,state)
             local z   = state[1]
@@ -280,37 +247,37 @@ function solve_canonical(dmp, t, y0, g, solver)
             local x   = state[3]
             zp  = acceleration(dmp, y, z, x,g[i],i)
             yp  = z
-            xp  = -αx * x
-            [zp;yp;xp] / τ
+            xp  = -αx/τ * x
+            [zp;yp;xp]
         end
-        state0  = [0; y0[i]; 1.]
+        state0 = [dmp.ẏ[1,i]; y0[i]; 1.]
         tout,state_history = solver(time_derivative, state0, t,points=:specified)
-        res = vv2m(state_history)
-        z[:,i] = res[:,1]/τ
+        res    = vv2m(state_history)
+        z[:,i] = res[:,1]
         y[:,i] = res[:,2]
-        x = res[:,3] # TODO: se till att denna är samma för alla DOF
+        x      = res[:,3] # TODO: se till att denna är samma för alla DOF
     end
     t,y,z,x
 end
 
 function solve_position(dmp, t, y0, g, solver)
-    T,n     = size(dmp.y)
-    αx      = dmp.opts.αx
-    τ       = dmp.τ
-    z       = zeros(T,n)
-    y       = zeros(T,n)
+    T,n = size(dmp.y)
+    αx  = dmp.opts.αx
+    τ   = dmp.τ
+    z   = zeros(T,n)
+    y   = zeros(T,n)
     for i = 1:n
         function time_derivative(t,state)
             local z   = state[1]
             local y   = state[2]
             zp  = acceleration(dmp, y, z, g[i]-y,g[i],i)
             yp  = z
-            [zp;yp] / τ
+            [zp;yp]
         end
         state0  = [0; y0[i]]
         tout,state_history = solver(time_derivative, state0, t,points=:specified)
         res = vv2m(state_history)
-        z[:,i] = res[:,1]/τ
+        z[:,i] = res[:,1]
         y[:,i] = res[:,2]
     end
     t,y,z,y
@@ -328,38 +295,17 @@ function solve_time(dmp, t, y0, g, solver)
             local y   = state[2]
             zp  = acceleration(dmp, y, z, t ,g[i],i)
             yp  = z
-            [zp;yp] / τ
+            [zp;yp]
         end
         state0  = [0; y0[i]]
         tout,state_history = solver(time_derivative, state0, t,points=:specified)
         res = vv2m(state_history)
-        z[:,i] = res[:,1]/τ
+        z[:,i] = res[:,1]
         y[:,i] = res[:,2]
     end
     t,y,z,t
 end
 
 
-plotdmp(dmp::DMP, args...) = println("To plot a DMP, install package Plots.jl or call tout,yout,ẏout,xout = solve(dmp) to produce your own plot.")
-
-
-@require Plots begin
-math(sl) = map(s->string("\$",s,"\$") ,sl)
-function plotdmp(dmp::DMP; kwargs...)
-    tout,yout,ẏout,xout = solve(dmp)
-    n = size(dmp.y,2)
-    fig = Plots.subplot(n = n, nc = 1)
-    for i = 1:n
-        Plots.plot!(fig[i,1],tout,[yout[:,i] ẏout[:,i]],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
-        Plots.plot!(fig[i,1],tout,[dmp.y[:,i] dmp.ẏ[:,i]],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
-    end
-end
-
-function plotdmpphase(dmp::DMP; kwargs...)
-    tout,yout,ẏout,xout = solve(dmp)
-    Plots.plot(yout[:,1],yout[:,2],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
-    Plots.plot!(dmp.y[:,1],dmp.y[:,2],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
-end
-end
-
+include("DMP2dof.jl")
 end # module
