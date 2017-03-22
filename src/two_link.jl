@@ -9,7 +9,7 @@ const v1 = const v2 = 2
 const m1 = const m2 = 0.2
 const l1 = const l2 = 1
 const k1 = const k2 = 0.00
-const g = 9.82
+const g = 1.82
 
 function inertia(q2)
     x = cos(q2)*l1*l2*m2 + l2^2*m2
@@ -183,18 +183,18 @@ function traj(q0,q1,t, V)
     for (i,t) = enumerate(t)
         if t <= tb
             # initial blend
-            p[i] = q0 + a/2*t^2
-            pd[i] = a*t
+            p[i]   = q0 + a/2*t^2
+            pd[i]  = a*t
             pdd[i] = a
-        elseif t <= tf-tb
+        elseif t < = tf-tb
             # linear motion
-            p[i] = (q1+q0-V*tf)/2 + V*t
-            pd[i] = V
+            p[i]   = (q1+q0-V*tf)/2 + V*t
+            pd[i]  = V
             pdd[i] = 0
         else
             # final blend
-            p[i] = q1 - a/2*tf^2 + a*tf*t - a/2*t^2
-            pd[i] = a*tf - a*t;
+            p[i]   = q1 - a/2*tf^2 + a*tf*t - a/2*t^2
+            pd[i]  = a*tf - a*t;
             pdd[i] = -a;
         end
     end

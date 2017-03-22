@@ -55,9 +55,6 @@ function euler_disturbance(time_derivative, state0, t, args...; kwargs...)
     res[1,:] = state0
     for i in 2:T
         td = time_derivative(t[i-1],res[i-1,:])*(t[i]-t[i-1])
-        if any(isnan(td))
-            @show td, i
-        end
         if 500 <= i < 700 # Hold ẏa still
             td[4] = 0
         end
@@ -67,7 +64,7 @@ function euler_disturbance(time_derivative, state0, t, args...; kwargs...)
 end
 ```
 
-We can call the solve method with our custom solver and plot the result. It sould be clear from the figures that this time, the coupled signal `yc` slows down when there is a nonzero error.
+We can call the solve method with our custom solver and plot the result. It should be clear from the figures that this time, the coupled signal `yc` slows down when there is a nonzero error.
 ```julia
 t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler_disturbance)
 plot(t,ẏc, lab="\$ẏ_c\$", c=:red, l=(:dash, 3), layout=(2,2), subplot=1)
@@ -80,5 +77,5 @@ t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler)
 plot!(t,ẏc, lab="\$ẏ_u\$", c=:black, l=(:dashdot, 3), subplot=1)
 plot!(t,yc, lab="\$y_u\$", c=:black, l=(:dashdot, 3), subplot=2)
 ```
-
+In the figure below, the black line represents the evolution with no disturbance, in the paper referred to as the unperturbed evolution. The blue evolution is the actual system evolution whereas the red curve displays the coupled system evolution.
 ![DMP2dof plot](figs/dmp2.png)
