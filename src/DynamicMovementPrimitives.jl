@@ -2,7 +2,9 @@ module DynamicMovementPrimitives
 using ODE, Requires, RecipesBase
 
 
-export DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, kernel_vector
+export DMP, DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, kernel_vector, plotdmp, plotdmpphase, euler
+
+export DMP2dofopts, DMP2dof
 
 """
 `DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis, αx, αz, βz = αz/4)`\n
@@ -26,13 +28,15 @@ end
 DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4,:canonical)
 DMPopts(Nbasis,αx,αz,sched_sig::Symbol=:canonical,fitmethod::Symbol = :lwr) = DMPopts(Nbasis,αx,αz,αz/4,sched_sig,fitmethod)
 
+abstract AbstractDMP
+
 """
 The result of fitting a DMP
 #Fields
 `opts,g,y,ẏ,ÿ,w,τ,c,σ2`\n
 See example file or the paper by Ijspeert et al. 2013
 """
-type DMP
+type DMP <: AbstractDMP
     opts::DMPopts
     g::Vector{Float64}
     y::Matrix{Float64}
@@ -107,7 +111,7 @@ function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
         end
         if opts.fitmethod == :leastsquares
             w = Ψ\(ft./ξ)
-        else
+        else # LWR
             for j = 1:Nbasis
                 sTΓ = ξ[:,i].*Ψ[:,j]
                 w[j,i] = vecdot(sTΓ,ft[:,i])/vecdot(sTΓ,ξ[:,i])
@@ -123,7 +127,7 @@ end
 Calculate the forcing term for `dmp` when the phase variable is `x`\n
 The return value will be an `n` Vector or `T×n` Matrix depending on `typeof(x)`
 """
-function force(d::DMP, x)
+function force(d::AbstractDMP, x)
     if d.opts.sched_sig == :position
         force_multiple(d,x)
     else
@@ -131,7 +135,7 @@ function force(d::DMP, x)
     end
 end
 
-function force(d::DMP, x,i)
+function force(d::AbstractDMP, x,i)
     if d.opts.sched_sig == :position
         force_multiple(d,x,i)
     else
@@ -139,35 +143,35 @@ function force(d::DMP, x,i)
     end
 end
 
-function force_single(d::DMP,x::Number, i)
+function force_single(d::AbstractDMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
     Ψ  = kernel_vector(x, d.c, d.σ2)
     f = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
-function force_single(d::DMP,x::Number)
+function force_single(d::AbstractDMP,x::Number)
     # Point case
     y0 = _1(d)
     Ψ  = kernel_matrix([x], d.c, d.σ2)
     f  = (Ψ*d.w)[:] .* (x*(d.g-y0))
 end
 
-function force_single(d::DMP,x::AbstractVector)
+function force_single(d::AbstractDMP,x::AbstractVector)
     # Trajectory case
     y0 = _1(d)
     Ψ    = kernel_matrix(x, d.c, d.σ2)
     f = Ψ*d.w .* (x.*(d.g-y0)')
 end
 
-function force_multiple(d::DMP,x::Number, i)
+function force_multiple(d::AbstractDMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
     Ψ  = kernel_vector(x, d.c[:,i], d.σ2[:,i])
     f  = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
-function force_multiple(d::DMP,x::AbstractVector)
+function force_multiple(d::AbstractDMP,x::AbstractVector)
     # Point case
     n = size(d.c,2) # Number of DOF
     y0 = _1(d)
@@ -179,7 +183,7 @@ function force_multiple(d::DMP,x::AbstractVector)
     f
 end
 
-function force_multiple(d::DMP,x::AbstractMatrix)
+function force_multiple(d::AbstractDMP,x::AbstractMatrix)
     # Trajectory case
     T,n = size(x)
     y0 = _1(d)
@@ -208,7 +212,7 @@ function acceleration(d::DMP, y::AbstractMatrix,ẏ::AbstractMatrix,x::AbstractV
 end
 
 """
-`t,y,z,x = solve(dmp::DMP, t = 0:_T(dmp)-1; y0 = _1(dmp), g = dmp.g, solver=ode45)`
+`t,y,z,x = solve(dmp, t = 0:length(dmp.t)-1; y0 = _1(dmp), g = dmp.g, solver=ode45)`
 
 `t` time vector
 
@@ -216,10 +220,11 @@ end
 `y0` start position, defaults to the initial point in training data from `dmp`
 `g` goal, defaults to goal from `dmp`\n
 `solver` the ode solver to use, see https://github.com/JuliaLang/ODE.jl \n
+The default solver is `solver=ode54`, a faster alternative is `solver=euler`
 
 see also `plotdmp`
 """
-function solve(dmp::DMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
+function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
     if dmp.opts.sched_sig == :position
         return solve_position(dmp, t, y0, g, solver)
     elseif dmp.opts.sched_sig == :time
@@ -228,13 +233,13 @@ function solve(dmp::DMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
     solve_canonical(dmp, t, y0, g, solver)
 end
 
-function solve_canonical(dmp, t, y0, g, solver)
-    T,n     = size(dmp.y)
-    αx      = dmp.opts.αx
-    τ       = dmp.τ
-    z       = zeros(T,n)
-    y       = zeros(T,n)
-    x       = zeros(T)
+function solve_canonical(dmp::DMP, t, y0, g, solver)
+    T,n = size(dmp.y)
+    αx  = dmp.opts.αx
+    τ   = dmp.τ
+    z   = zeros(T,n)
+    y   = zeros(T,n)
+    x   = zeros(T)
     for i = 1:n
         function time_derivative(t,state)
             local z   = state[1]
@@ -245,22 +250,22 @@ function solve_canonical(dmp, t, y0, g, solver)
             xp  = -αx/τ * x
             [zp;yp;xp]
         end
-        state0  = [dmp.ẏ[1,i]; y0[i]; 1.]
+        state0 = [dmp.ẏ[1,i]; y0[i]; 1.]
         tout,state_history = solver(time_derivative, state0, t,points=:specified)
-        res = vv2m(state_history)
+        res    = vv2m(state_history)
         z[:,i] = res[:,1]
         y[:,i] = res[:,2]
-        x = res[:,3] # TODO: se till att denna är samma för alla DOF
+        x      = res[:,3] # TODO: se till att denna är samma för alla DOF
     end
     t,y,z,x
 end
 
 function solve_position(dmp, t, y0, g, solver)
-    T,n     = size(dmp.y)
-    αx      = dmp.opts.αx
-    τ       = dmp.τ
-    z       = zeros(T,n)
-    y       = zeros(T,n)
+    T,n = size(dmp.y)
+    αx  = dmp.opts.αx
+    τ   = dmp.τ
+    z   = zeros(T,n)
+    y   = zeros(T,n)
     for i = 1:n
         function time_derivative(t,state)
             local z   = state[1]
@@ -301,4 +306,6 @@ function solve_time(dmp, t, y0, g, solver)
     t,y,z,t
 end
 
+
+include("DMP2dof.jl")
 end # module
