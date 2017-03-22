@@ -37,12 +37,14 @@ plot(dmp,true)
 
 ### DMP with two degrees of freedom (Karlsson, Bagge Carlson et al. 2017)
 This package also contains an implementation of
+```bibtex
 @inproceedings{karlsson2017dmp,
   title        = {Two-Degree-of-Freedom Control for Trajectory Tracking and Perturbation Recovery during Execution of Dynamical Movement Primitives},
   author       = {Karlsson, Martin and Bagge Carlson, Fredrik and Robertsson, Anders and Johansson, Rolf},
   booktitle    = {20th IFAC World Congress},
   year         = {2017},
 }
+```
 
 We start by upgrading the DMP object to incorporate also the controller parameters for the 2DOF controller
 ```julia
