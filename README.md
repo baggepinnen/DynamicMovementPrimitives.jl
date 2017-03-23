@@ -66,7 +66,7 @@ function euler_disturbance(time_derivative, state0, t, args...; kwargs...)
     for i in 2:T
         td = time_derivative(t[i-1],res[i-1,:])*(t[i]-t[i-1])
         if 500 <= i < 700 # Hold ẏa still
-            td[4] = 0
+            td[3] = 0
         end
         res[i,:] = res[i-1,:] + td
     end

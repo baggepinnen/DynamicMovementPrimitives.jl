@@ -25,7 +25,6 @@ immutable DMPopts
     fitmethod::Symbol
 end
 
-DMPopts(Nbasis,αx,αz) = DMPopts(Nbasis,αx,αz,αz/4,:canonical)
 DMPopts(Nbasis,αx,αz,sched_sig::Symbol=:canonical,fitmethod::Symbol = :lwr) = DMPopts(Nbasis,αx,αz,αz/4,sched_sig,fitmethod)
 
 abstract AbstractDMP
