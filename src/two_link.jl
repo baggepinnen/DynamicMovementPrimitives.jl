@@ -186,7 +186,7 @@ function traj(q0,q1,t, V)
             p[i]   = q0 + a/2*t^2
             pd[i]  = a*t
             pdd[i] = a
-        elseif t < = tf-tb
+        elseif t <= tf-tb
             # linear motion
             p[i]   = (q1+q0-V*tf)/2 + V*t
             pd[i]  = V
