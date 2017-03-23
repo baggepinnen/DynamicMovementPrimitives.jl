@@ -1,4 +1,3 @@
-
 type DMP2dofopts
     kp::Float64
     kv::Float64
@@ -35,15 +34,15 @@ DMP2dof(d::DMP, dmp2opts::DMP2dofopts) = DMP2dof(d.opts,d.g,d.y,d.ẏ,d.ÿ,d.t,
 
 function acceleration(d::DMP2dof, yc::Number,ẏc::Number,x::Number,ya,ẏa,e,g::Number,i=1)
     f = force(d,x,i)
-    _acceleration(d,f,yc,ẏc,x,ya,ẏa,e,g)
+    _acceleration(d,f,yc,ẏc,ya,ẏa,e,g)
 end
 
 function acceleration(d::DMP2dof, yc,ẏc,x,ya,ẏa,e,g=d.g)
     f = force(d,x)
-    _acceleration(d,f,yc,ẏc,x,ya,ẏa,e,g)
+    _acceleration(d,f,yc,ẏc,ya,ẏa,e,g)
 end
 
-function _acceleration(d,f, yc,ẏc,x,ya,ẏa,e,g)
+function _acceleration(d,f, yc,ẏc,ya,ẏa,e,g)
     αz,βz,αe,τ,kc,kp,kv = d.opts.αz,d.opts.βz,d.opts2.αe,d.τ,d.opts2.kc,d.opts2.kp,d.opts2.kv
     τa  = τ*(1+kc*e^2)
     z   = τa*ẏc

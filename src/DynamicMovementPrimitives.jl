@@ -120,28 +120,6 @@ function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
     return DMP(opts, g, y, ẏ, ÿ,t, w, τ,c,σ2)
 end
 
-"""
-`force(dmp,x)`
-
-Calculate the forcing term for `dmp` when the phase variable is `x`\n
-The return value will be an `n` Vector or `T×n` Matrix depending on `typeof(x)`
-"""
-function force(d::AbstractDMP, x)
-    if d.opts.sched_sig == :position
-        force_multiple(d,x)
-    else
-        force_single(d,x)
-    end
-end
-
-function force(d::AbstractDMP, x,i)
-    if d.opts.sched_sig == :position
-        force_multiple(d,x,i)
-    else
-        force_single(d,x,i)
-    end
-end
-
 function force_single(d::AbstractDMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
@@ -194,6 +172,27 @@ function force_multiple(d::AbstractDMP,x::AbstractMatrix)
     f
 end
 
+"""
+`force(dmp,x)`
+
+Calculate the forcing term for `dmp` when the phase variable is `x`\n
+The return value will be an `n` Vector or `T×n` Matrix depending on `typeof(x)`
+"""
+function force(d::AbstractDMP, x)
+    if d.opts.sched_sig == :position
+        force_multiple(d,x)
+    else
+        force_single(d,x)
+    end
+end
+
+function force(d::AbstractDMP, x,i)
+    if d.opts.sched_sig == :position
+        force_multiple(d,x,i)
+    else
+        force_single(d,x,i)
+    end
+end
 
 function acceleration(d::DMP, y::Number,ẏ::Number,x::Number,g::Number,i=1)
     f = force(d,x,i)
@@ -208,28 +207,6 @@ end
 function acceleration(d::DMP, y::AbstractMatrix,ẏ::AbstractMatrix,x::AbstractVecOrMat,g::AbstractVector)
     f = force(d,x)
     (d.opts.αz*(d.opts.βz*(g'.-y)-d.τ*ẏ)+f)/d.τ^2
-end
-
-"""
-`t,y,z,x = solve(dmp, t = 0:length(dmp.t)-1; y0 = _1(dmp), g = dmp.g, solver=ode45)`
-
-`t` time vector
-
-## Keyword arguments: \n
-`y0` start position, defaults to the initial point in training data from `dmp`
-`g` goal, defaults to goal from `dmp`\n
-`solver` the ode solver to use, see https://github.com/JuliaLang/ODE.jl \n
-The default solver is `solver=ode54`, a faster alternative is `solver=euler`
-
-see also `plotdmp`
-"""
-function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
-    if dmp.opts.sched_sig == :position
-        return solve_position(dmp, t, y0, g, solver)
-    elseif dmp.opts.sched_sig == :time
-        return solve_time(dmp, t, y0, g, solver)
-    end
-    solve_canonical(dmp, t, y0, g, solver)
 end
 
 function solve_canonical(dmp::DMP, t, y0, g, solver)
@@ -303,6 +280,28 @@ function solve_time(dmp, t, y0, g, solver)
         y[:,i] = res[:,2]
     end
     t,y,z,t
+end
+
+"""
+`t,y,z,x = solve(dmp, t = 0:length(dmp.t)-1; y0 = _1(dmp), g = dmp.g, solver=ode45)`
+
+`t` time vector
+
+## Keyword arguments: \n
+`y0` start position, defaults to the initial point in training data from `dmp`
+`g` goal, defaults to goal from `dmp`\n
+`solver` the ode solver to use, see https://github.com/JuliaLang/ODE.jl \n
+The default solver is `solver=ode54`, a faster alternative is `solver=euler`
+
+see also `plotdmp`
+"""
+function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
+    if dmp.opts.sched_sig == :position
+        return solve_position(dmp, t, y0, g, solver)
+    elseif dmp.opts.sched_sig == :time
+        return solve_time(dmp, t, y0, g, solver)
+    end
+    solve_canonical(dmp, t, y0, g, solver)
 end
 
 
