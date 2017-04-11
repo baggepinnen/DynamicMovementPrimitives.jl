@@ -34,23 +34,24 @@ DMP2dof(d::DMP, dmp2opts::DMP2dofopts) = DMP2dof(d.opts,d.g,d.y,d.ẏ,d.ÿ,d.t,
 
 function acceleration(d::DMP2dof, yc::Number,ẏc::Number,x::Number,ya,ẏa,e,g::Number,i=1)
     f = force(d,x,i)
-    _acceleration(d,f,yc,ẏc,ya,ẏa,e,g)
+    _acceleration(d,f,yc,ẏc,x,ya,ẏa,e,g)
 end
 
 function acceleration(d::DMP2dof, yc,ẏc,x,ya,ẏa,e,g=d.g)
     f = force(d,x)
-    _acceleration(d,f,yc,ẏc,ya,ẏa,e,g)
+    _acceleration(d,f,yc,ẏc,x,ya,ẏa,e,g)
 end
 
-function _acceleration(d,f, yc,ẏc,ya,ẏa,e,g)
-    αz,βz,αe,τ,kc,kp,kv = d.opts.αz,d.opts.βz,d.opts2.αe,d.τ,d.opts2.kc,d.opts2.kp,d.opts2.kv
+function _acceleration(d,f, yc,ẏc,x,ya,ẏa,e,g)
+    αz,βz,αe,τ,kc,kp,kv,αx = d.opts.αz,d.opts.βz,d.opts2.αe,d.τ,d.opts2.kc,d.opts2.kp,d.opts2.kv,d.opts.αx
     τa  = τ*(1+kc*e^2)
+    ẋ   = -αx/τa * x
     z   = τa*ẏc
     ż   = (αz*(βz*(g-yc)-z)+f)/τa
     ė   = αe*(ya-yc-e)
     ÿc  = (ż*τa - 2τ*kc*z*e*ė)/τa^2
     ÿa  = kp*(yc-ya) + kv*(ẏc-ẏa) + ÿc
-    ẏc,ÿc,ẏa,ÿa,ė
+    ẏc,ÿc,ẏa,ÿa,ė,ẋ
 end
 
 function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
@@ -71,8 +72,7 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
             local ẏa  = state[4]
             local e   = state[5]
             local x   = state[6]
-            ẏc,ÿc,ẏa,ÿa,ė = acceleration(dmp,yc,ẏc,x,ya,ẏa,e,g[i],i)
-            ẋ = -αx/τ * x
+            ẏc,ÿc,ẏa,ÿa,ė,ẋ = acceleration(dmp,yc,ẏc,x,ya,ẏa,e,g[i],i)
             [ẏc,ÿc,ẏa,ÿa,ė,ẋ]
         end
         state0 = [y0[i], dmp.ẏ[1,i], y0[i], dmp.ẏ[1,i], 0, 1.]
@@ -83,7 +83,7 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
         ya[:,i]  = res[:,3]
         ẏa[:,i]  = res[:,4]
         e[:,i]   = res[:,5]
-        x[i]     = res[6] # TODO: se till att denna är samma för alla DOF
+        x[:]     = res[6] # TODO: se till att denna är samma för alla DOF
     end
     t,yc,ẏc,x,ya,ẏa,e
 end

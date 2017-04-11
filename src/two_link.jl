@@ -1,9 +1,11 @@
 module TwoLink
-using FixedSizeArrays
 
-export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, V2, connect_points, acceleration, time_derivative, inertia
 
-typealias V2 Vec{2,Float64}
+export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, connect_points, acceleration, time_derivative, time_derivative!, inertia
+
+import Base: +
+TwoTuple = Tuple{Number,Number}
++(a::TwoTuple,b::TwoTuple) = (a[1]+b[1],a[2]+b[2])
 
 const v1 = const v2 = 2
 const m1 = const m2 = 0.2
@@ -18,20 +20,20 @@ function inertia(q2)
 end
 inertia(q1,q2) = inertia(q2)
 
-signfunc(x) = tanh(0.01x)
+signfunc(x) = tanh(0.01x) # A friendlier (smoother) version of sign(x)
 
 """
-`V2(τ1,τ2) = torque(q,qd,qdd)`\n
+`[τ1,τ2] = torque(q,qd,qdd)`\n
 Inverse model
 """
 function torque(q,qd,qdd)
-    q1,q2 = q
-    qd1,qd2 = qd
+    q1,q2     = q
+    qd1,qd2   = qd
     qdd1,qdd2 = qdd
 
-    c2 = cos(q2)
-    s1 = sin(q1)
-    s2 = sin(q2)
+    c2  = cos(q2)
+    s1  = sin(q1)
+    s2  = sin(q2)
     s12 = sin(q1+q2)
 
     τ1 = m2*l2^2*(qdd1+qdd2) + m2*l1*l2*c2*(2qdd1+qdd2) +
@@ -46,7 +48,7 @@ function torque(q,qd,qdd)
 end
 
 """
-`q̈ = acceleration(τ::V2, q::V2, qd::V2)`\n
+`q̈1,q̈2 = acceleration(τ::VecOrTuple, q::VecOrTuple, qd::VecOrTuple)`\n
 `q̈1,q̈2 = acceleration(q1,q2,qd1,qd2,τ1,τ2)`\n
 Model
 """
@@ -63,11 +65,11 @@ function acceleration(q1,q2,qd1,qd2,τ1,τ2)
     qdd1,qdd2
 end
 
-function acceleration(τ::V2, q::V2, qd::V2)
-    q1,q2 = q
+function acceleration(τ, q, qd)
+    q1,q2   = q
     qd1,qd2 = qd
-    τ1,τ2 = τ
-    V2(acceleration(q1,q2,qd1,qd2,τ1,τ2))
+    τ1,τ2   = τ
+    acceleration(q1,q2,qd1,qd2,τ1,τ2)
 end
 
 function time_derivative(state, τ)
@@ -75,7 +77,7 @@ function time_derivative(state, τ)
     return [state[3],state[4], qdd1,qdd2]
 end
 
-function time_derivative(state, τ, deriv)
+function time_derivative!(state, τ, deriv)
     qdd1,qdd2 = acceleration(state[1],state[2],state[3],state[4],τ[1],τ[2])
     deriv[:] = [state[3],state[4], qdd1,qdd2]
 end
@@ -91,8 +93,8 @@ end
 
 function forward_kin(q)
     q1,q2 = q[1],(q[1]+q[2])
-    p1 = V2(l1*sin(q1), -l1*cos(q1))
-    p = p1 + V2(l2*sin(q2), -l2*cos(q2))
+    p1 = (l1*sin(q1), -l1*cos(q1))
+    p = p1 + (l2*sin(q2), -l2*cos(q2))
     p1, p
 end
 
@@ -119,7 +121,7 @@ function inverse_kin(p)
     β2 = -β
     q11 = asin(x/a)-β2
     q12 = asin(x/a)-β
-    V2(q11,q21), V2(q12,q22)
+    (q11,q21), (q12,q22)
 end
 
 function inverse_kin_up(p)
@@ -156,10 +158,8 @@ function traj(q0,q1,t)
 end
 
 function traj(q0,q1,t, V)
-
     tf = maximum(t)
-
-    V = abs(V) * sign(q1-q0)
+    V  = abs(V) * sign(q1-q0)
     if abs(V) < abs(q1-q0)/tf
         error("V too small")
     elseif abs(V) > 2*abs(q1-q0)/tf
@@ -203,21 +203,20 @@ function traj(q0,q1,t, V)
 end
 
 function connect_points(points,ni)
-    fx(i) = traj(points[i,1],points[i+1,1],1:ni)
-    fy(i) = traj(points[i,2],points[i+1,2],1:ni)
-    n = size(points,1)
+    fx(i)    = traj(points[i,1],points[i+1,1],1:ni)
+    fy(i)    = traj(points[i,2],points[i+1,2],1:ni)
+    n        = size(points,1)
     x,xd,xdd = fx(1)
     y,yd,ydd = fy(1)
-    p   = [x y]
-    pd  = [xd yd]
-    pdd = [xdd ydd]
+    p        = [x y]
+    pd       = [xd yd]
+    pdd      = [xdd ydd]
     for i = 2:n-1
         x,xd,xdd = fx(i)
         y,yd,ydd = fy(i)
-        p = cat(1,p,[x y])
-        pd = cat(1,pd,[xd yd])
-        pdd = cat(1,pdd,[xdd ydd])
-
+        p        = cat(1,p,[x y])
+        pd       = cat(1,pd,[xd yd])
+        pdd      = cat(1,pdd,[xdd ydd])
     end
     p, pd, pdd
 end

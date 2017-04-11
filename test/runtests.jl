@@ -147,3 +147,62 @@ jtraj = inverse_kin(ctraj,:up)
 ctraj2 = forward_kin(jtraj)
 
 @test ctraj ≈ ctraj2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+using DynamicMovementPrimitives
+Nbasis  = 15
+αz      = 25.
+αx      = 1.
+opts    = DMPopts(Nbasis,αx,αz)
+
+y       = [zeros(10);linspace(0,2,1000); 2ones(500)]
+T       = length(y)
+t       = linspace(0,10,T)
+h       = t[2]-t[1] # Sample interval
+y       = [y 0.5y]
+ẏ       = centraldiff(y) /h # Differentiate position to get velocity
+ÿ       = centraldiff(ẏ) /h
+dmp     = fit(y,ẏ,ÿ,t,opts)
+dmp2opts = DMP2dofopts(kp = 25,kv = 10,kc = 10_000,αe = 5)
+dmp2 = DMP2dof(dmp, dmp2opts) # Upgrade dmp to 2DOF version
+
+t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t)
+
+function euler_disturbance(time_derivative, state0, t, args...; kwargs...)
+    T = length(t)
+    n = length(state0)
+    res = Matrix{Float64}(T,n)
+    res[1,:] = state0
+    for i in 2:T
+        td = time_derivative(t[i-1],res[i-1,:])*(t[i]-t[i-1])
+        if 400 <= i < 600 # Hold ẏa still
+            td[3] = 0
+        end
+        res[i,:] = res[i-1,:] + td
+    end
+    t,res
+end
+
+t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler_disturbance)
+plot(t,ẏc, lab="\$ẏ_c\$", c=:red, l=(:dash, 3), layout=(2,2), subplot=1)
+plot!(t,yc, lab="\$y_c\$", c=:red, l=(:dash, 3), subplot=2)
+plot!(t,ẏa, lab="\$ẏ_a\$", c=:blue, subplot=1)
+plot!(t,ya, lab="\$y_a\$", c=:blue, subplot=2)
+plot!(t,e, lab="\$e\$", c=:green, subplot=3)
+plot!(t,400 .<= 1:T .< 600, lab="Disturbance", c=:green, subplot=4, fillrange=0)
+t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler)
+plot!(t,ẏc, lab="\$ẏ_u\$", c=:black, l=(:dashdot, 3), subplot=1)
+plot!(t,yc, lab="\$y_u\$", c=:black, l=(:dashdot, 3), subplot=2)
