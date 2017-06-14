@@ -175,9 +175,9 @@ function traj(q0,q1,t, V)
     tb = (q0 - q1 + V*tf)/V
     a = V/tb
 
-    p = Array(Float64,size(t))
-    pd = Array(Float64,size(t))
-    pdd = Array(Float64,size(t))
+    p = Array{Float64}(size(t))
+    pd = Array{Float64}(size(t))
+    pdd = Array{Float64}(size(t))
 
     for (i,t) = enumerate(t)
         if t <= tb

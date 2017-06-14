@@ -44,7 +44,7 @@ function acceleration(d::DMP2dof, yc,ẏc,x,ya,ẏa,e,g=d.g)
 end
 
 function _acceleration(d,f, yc,ẏc,x,ya,ẏa,e,g)
-    αz,βz,αe,τ,kc,kp,kv = d.opts.αz,d.opts.βz,d.opts2.αe,d.τ,d.opts2.kc,d.opts2.kp,d.opts2.kv
+    αx,αz,βz,αe,τ,kc,kp,kv = d.opts.αx,d.opts.αz,d.opts.βz,d.opts2.αe,d.τ,d.opts2.kc,d.opts2.kp,d.opts2.kv
     τa  = τ*(1+kc*e^2)
     ẋ   = -αx/τa * x
     z   = τa*ẏc
@@ -65,7 +65,6 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
     ẏa  = zeros(T,n)
     e   = zeros(T,n)
     x   = zeros(T)
-    println("snel")
     for i = 1:n
         function time_derivative(t,state)
             local yc  = state[1]
@@ -74,7 +73,6 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
             local ẏa  = state[4]
             local e   = state[5]
             local x   = state[6]
-            @show x
             ẏc,ÿc,ẏa,ÿa,ė,ẋ = acceleration(dmp,yc,ẏc,x,ya,ẏa,e,g[i],i)
             [ẏc,ÿc,ẏa,ÿa,ė,ẋ]
         end
