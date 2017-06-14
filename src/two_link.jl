@@ -1,9 +1,8 @@
 module TwoLink
-using FixedSizeArrays
 
-export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, V2, connect_points, acceleration, time_derivative, inertia
-
-typealias V2 Vec{2,Float64}
+export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, connect_points, acceleration, time_derivative, inertia
+import Base: +
++(a::Tuple{Number,Number}, b::Tuple{Number,Number}) = (a[1]+b[1], a[2]+b[2])
 
 const v1 = const v2 = 2
 const m1 = const m2 = 0.2
@@ -21,7 +20,7 @@ inertia(q1,q2) = inertia(q2)
 signfunc(x) = tanh(0.01x)
 
 """
-`V2(τ1,τ2) = torque(q,qd,qdd)`\n
+`τ1,τ2 = torque(q,qd,qdd)`\n
 Inverse model
 """
 function torque(q,qd,qdd)
@@ -46,7 +45,7 @@ function torque(q,qd,qdd)
 end
 
 """
-`q̈ = acceleration(τ::V2, q::V2, qd::V2)`\n
+`q̈ = acceleration(τ::Tuple, q::Tuple, qd::Tuple)`\n
 `q̈1,q̈2 = acceleration(q1,q2,qd1,qd2,τ1,τ2)`\n
 Model
 """
@@ -63,11 +62,11 @@ function acceleration(q1,q2,qd1,qd2,τ1,τ2)
     qdd1,qdd2
 end
 
-function acceleration(τ::V2, q::V2, qd::V2)
+function acceleration(τ::Tuple, q::Tuple, qd::Tuple)
     q1,q2 = q
     qd1,qd2 = qd
     τ1,τ2 = τ
-    V2(acceleration(q1,q2,qd1,qd2,τ1,τ2))
+    acceleration(q1,q2,qd1,qd2,τ1,τ2)
 end
 
 function time_derivative(state, τ)
@@ -91,8 +90,8 @@ end
 
 function forward_kin(q)
     q1,q2 = q[1],(q[1]+q[2])
-    p1 = V2(l1*sin(q1), -l1*cos(q1))
-    p = p1 + V2(l2*sin(q2), -l2*cos(q2))
+    p1 = (l1*sin(q1), -l1*cos(q1))
+    p = p1 + (l2*sin(q2), -l2*cos(q2))
     p1, p
 end
 
@@ -119,7 +118,7 @@ function inverse_kin(p)
     β2 = -β
     q11 = asin(x/a)-β2
     q12 = asin(x/a)-β
-    V2(q11,q21), V2(q12,q22)
+    (q11,q21), (q12,q22)
 end
 
 function inverse_kin_up(p)
@@ -186,7 +185,7 @@ function traj(q0,q1,t, V)
             p[i]   = q0 + a/2*t^2
             pd[i]  = a*t
             pdd[i] = a
-        elseif t < = tf-tb
+        elseif t <= tf-tb
             # linear motion
             p[i]   = (q1+q0-V*tf)/2 + V*t
             pd[i]  = V

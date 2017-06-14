@@ -1,5 +1,5 @@
 
-type DMP2dofopts
+mutable struct DMP2dofopts
     kp::Float64
     kv::Float64
     kc::Float64
@@ -17,7 +17,7 @@ Upgrade a `DMP` to a `DMP2dof` using
  dmp2 = DMP2dof(dmp, dmp2opts) # Upgrade dmp to 2DOF version
  ```
 """
-type DMP2dof <: AbstractDMP
+mutable struct DMP2dof <: AbstractDMP
     opts::DMPopts
     g::Vector{Float64}
     y::Matrix{Float64}
@@ -46,12 +46,13 @@ end
 function _acceleration(d,f, yc,ẏc,x,ya,ẏa,e,g)
     αz,βz,αe,τ,kc,kp,kv = d.opts.αz,d.opts.βz,d.opts2.αe,d.τ,d.opts2.kc,d.opts2.kp,d.opts2.kv
     τa  = τ*(1+kc*e^2)
+    ẋ   = -αx/τa * x
     z   = τa*ẏc
     ż   = (αz*(βz*(g-yc)-z)+f)/τa
     ė   = αe*(ya-yc-e)
     ÿc  = (ż*τa - 2τ*kc*z*e*ė)/τa^2
     ÿa  = kp*(yc-ya) + kv*(ẏc-ẏa) + ÿc
-    ẏc,ÿc,ẏa,ÿa,ė
+    ẏc,ÿc,ẏa,ÿa,ė,ẋ
 end
 
 function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
@@ -64,6 +65,7 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
     ẏa  = zeros(T,n)
     e   = zeros(T,n)
     x   = zeros(T)
+    println("snel")
     for i = 1:n
         function time_derivative(t,state)
             local yc  = state[1]
@@ -72,8 +74,8 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
             local ẏa  = state[4]
             local e   = state[5]
             local x   = state[6]
-            ẏc,ÿc,ẏa,ÿa,ė = acceleration(dmp,yc,ẏc,x,ya,ẏa,e,g[i],i)
-            ẋ = -αx/τ * x
+            @show x
+            ẏc,ÿc,ẏa,ÿa,ė,ẋ = acceleration(dmp,yc,ẏc,x,ya,ẏa,e,g[i],i)
             [ẏc,ÿc,ẏa,ÿa,ė,ẋ]
         end
         state0 = [y0[i], dmp.ẏ[1,i], y0[i], dmp.ẏ[1,i], 0, 1.]
@@ -84,7 +86,7 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
         ya[:,i]  = res[:,3]
         ẏa[:,i]  = res[:,4]
         e[:,i]   = res[:,5]
-        x[i]     = res[6] # TODO: se till att denna är samma för alla DOF
+        x[:]     = res[6] # TODO: se till att denna är samma för alla DOF
     end
     t,yc,ẏc,x,ya,ẏa,e
 end

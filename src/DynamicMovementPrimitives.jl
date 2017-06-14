@@ -16,7 +16,7 @@ Holds parameters for fitting a DMP
 
 See example file or the paper by Ijspeert et al. 2013
 """
-immutable DMPopts
+struct DMPopts
     Nbasis::Int
     αx::Float64
     αz::Float64
@@ -27,7 +27,7 @@ end
 
 DMPopts(Nbasis,αx,αz,sched_sig::Symbol=:canonical,fitmethod::Symbol = :lwr) = DMPopts(Nbasis,αx,αz,αz/4,sched_sig,fitmethod)
 
-abstract AbstractDMP
+abstract type AbstractDMP end
 
 """
 The result of fitting a DMP
@@ -35,7 +35,7 @@ The result of fitting a DMP
 `opts,g,y,ẏ,ÿ,w,τ,c,σ2`\n
 See example file or the paper by Ijspeert et al. 2013
 """
-type DMP <: AbstractDMP
+mutable struct DMP <: AbstractDMP
     opts::DMPopts
     g::Vector{Float64}
     y::Matrix{Float64}
@@ -55,10 +55,10 @@ include("utilities.jl")
 `solve_canonical(αx,τ,T::Real)`\n
 `solve_canonical(dmp::DMP [,t])`
 """
-solve_canonical(αx,τ,T::AbstractVector) = exp(-αx/τ.*T)
-solve_canonical(αx,τ,T::Real) = solve_canonical(αx,τ,(0:T-1))
-solve_canonical(dmp::DMP,t) = solve_canonical(dmp.opts.αx, dmp.τ, t)
-solve_canonical(dmp::DMP) = solve_canonical(dmp.opts.αx, dmp.τ, dmp.t)
+solve_canonical(αx,τ,T::AbstractVector) = exp.(-αx/τ.*T)
+solve_canonical(αx,τ,T::Real)           = solve_canonical(αx,τ,(0:T-1))
+solve_canonical(dmp::DMP,t)             = solve_canonical(dmp.opts.αx, dmp.τ, t)
+solve_canonical(dmp::DMP)               = solve_canonical(dmp.opts.αx, dmp.τ, dmp.t)
 
 
 function get_sched_sig(s,αx,τ,t,y,g)
@@ -97,7 +97,7 @@ function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
     αx      = opts.αx
     y0      = _1(y)
     x       = get_sched_sig(opts.sched_sig,αx,τ,t,y,g)
-    ft      = τ^2*ÿ - αz*(βz*(g'.-y)-τ*ẏ)
+    ft      = τ^2*ÿ .- αz*(βz*(g'.-y).-τ*ẏ)
     ξ       = x.*(g-y0)'
     c,σ2    = get_centers_linear(Nbasis,x)
     if opts.sched_sig != :position
