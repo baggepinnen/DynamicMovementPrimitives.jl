@@ -17,20 +17,20 @@ function inertia(q2)
 end
 inertia(q1,q2) = inertia(q2)
 
-signfunc(x) = tanh(0.01x)
+signfunc(x) = tanh(0.01x) # A friendlier (smoother) version of sign(x)
 
 """
 `τ1,τ2 = torque(q,qd,qdd)`\n
 Inverse model
 """
 function torque(q,qd,qdd)
-    q1,q2 = q
-    qd1,qd2 = qd
+    q1,q2     = q
+    qd1,qd2   = qd
     qdd1,qdd2 = qdd
 
-    c2 = cos(q2)
-    s1 = sin(q1)
-    s2 = sin(q2)
+    c2  = cos(q2)
+    s1  = sin(q1)
+    s2  = sin(q2)
     s12 = sin(q1+q2)
 
     τ1 = m2*l2^2*(qdd1+qdd2) + m2*l1*l2*c2*(2qdd1+qdd2) +
@@ -74,7 +74,7 @@ function time_derivative(state, τ)
     return [state[3],state[4], qdd1,qdd2]
 end
 
-function time_derivative(state, τ, deriv)
+function time_derivative!(state, τ, deriv)
     qdd1,qdd2 = acceleration(state[1],state[2],state[3],state[4],τ[1],τ[2])
     deriv[:] = [state[3],state[4], qdd1,qdd2]
 end
@@ -155,10 +155,8 @@ function traj(q0,q1,t)
 end
 
 function traj(q0,q1,t, V)
-
     tf = maximum(t)
-
-    V = abs(V) * sign(q1-q0)
+    V  = abs(V) * sign(q1-q0)
     if abs(V) < abs(q1-q0)/tf
         error("V too small")
     elseif abs(V) > 2*abs(q1-q0)/tf
@@ -202,21 +200,20 @@ function traj(q0,q1,t, V)
 end
 
 function connect_points(points,ni)
-    fx(i) = traj(points[i,1],points[i+1,1],1:ni)
-    fy(i) = traj(points[i,2],points[i+1,2],1:ni)
-    n = size(points,1)
+    fx(i)    = traj(points[i,1],points[i+1,1],1:ni)
+    fy(i)    = traj(points[i,2],points[i+1,2],1:ni)
+    n        = size(points,1)
     x,xd,xdd = fx(1)
     y,yd,ydd = fy(1)
-    p   = [x y]
-    pd  = [xd yd]
-    pdd = [xdd ydd]
+    p        = [x y]
+    pd       = [xd yd]
+    pdd      = [xdd ydd]
     for i = 2:n-1
         x,xd,xdd = fx(i)
         y,yd,ydd = fy(i)
-        p = cat(1,p,[x y])
-        pd = cat(1,pd,[xd yd])
-        pdd = cat(1,pdd,[xdd ydd])
-
+        p        = cat(1,p,[x y])
+        pd       = cat(1,pd,[xd yd])
+        pdd      = cat(1,pdd,[xdd ydd])
     end
     p, pd, pdd
 end

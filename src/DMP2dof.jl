@@ -1,4 +1,3 @@
-
 mutable struct DMP2dofopts
     kp::Float64
     kv::Float64
