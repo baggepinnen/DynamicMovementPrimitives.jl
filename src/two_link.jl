@@ -1,8 +1,7 @@
 module TwoLink
 
-export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, connect_points, acceleration, time_derivative, inertia
-import Base: +
-+(a::Tuple{Number,Number}, b::Tuple{Number,Number}) = (a[1]+b[1], a[2]+b[2])
+export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, connect_points, acceleration, time_derivative, time_derivative!, inertia, ⊕
+⊕(a::Tuple{Number,Number}, b::Tuple{Number,Number}) = (a[1]+b[1], a[2]+b[2])
 
 const v1 = const v2 = 2
 const m1 = const m2 = 0.2
@@ -41,7 +40,7 @@ function torque(q,qd,qdd)
     τ2 = m2*l1*l2*c2*qdd1 + m2*l1*l2*s2*qd1^2 + m2*l2*g*s12 +
     m2*l2^2*(qdd1 + qdd2) + v2*qd2 + k2*signfunc(qd2)
 
-    [τ1,τ2]
+    (τ1,τ2)
 end
 
 """
@@ -91,7 +90,7 @@ end
 function forward_kin(q)
     q1,q2 = q[1],(q[1]+q[2])
     p1 = (l1*sin(q1), -l1*cos(q1))
-    p = p1 + (l2*sin(q2), -l2*cos(q2))
+    p = p1 ⊕ (l2*sin(q2), -l2*cos(q2))
     p1, p
 end
 
