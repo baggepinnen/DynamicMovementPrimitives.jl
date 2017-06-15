@@ -1,11 +1,8 @@
 module TwoLink
 
-
-export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, connect_points, acceleration, time_derivative, time_derivative!, inertia
-
+export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, connect_points, acceleration, time_derivative, inertia
 import Base: +
-TwoTuple = Tuple{Number,Number}
-+(a::TwoTuple,b::TwoTuple) = (a[1]+b[1],a[2]+b[2])
++(a::Tuple{Number,Number}, b::Tuple{Number,Number}) = (a[1]+b[1], a[2]+b[2])
 
 const v1 = const v2 = 2
 const m1 = const m2 = 0.2
@@ -23,7 +20,7 @@ inertia(q1,q2) = inertia(q2)
 signfunc(x) = tanh(0.01x) # A friendlier (smoother) version of sign(x)
 
 """
-`[τ1,τ2] = torque(q,qd,qdd)`\n
+`τ1,τ2 = torque(q,qd,qdd)`\n
 Inverse model
 """
 function torque(q,qd,qdd)
@@ -48,7 +45,7 @@ function torque(q,qd,qdd)
 end
 
 """
-`q̈1,q̈2 = acceleration(τ::VecOrTuple, q::VecOrTuple, qd::VecOrTuple)`\n
+`q̈ = acceleration(τ::Tuple, q::Tuple, qd::Tuple)`\n
 `q̈1,q̈2 = acceleration(q1,q2,qd1,qd2,τ1,τ2)`\n
 Model
 """
@@ -65,10 +62,10 @@ function acceleration(q1,q2,qd1,qd2,τ1,τ2)
     qdd1,qdd2
 end
 
-function acceleration(τ, q, qd)
-    q1,q2   = q
+function acceleration(τ::Tuple, q::Tuple, qd::Tuple)
+    q1,q2 = q
     qd1,qd2 = qd
-    τ1,τ2   = τ
+    τ1,τ2 = τ
     acceleration(q1,q2,qd1,qd2,τ1,τ2)
 end
 
@@ -176,9 +173,9 @@ function traj(q0,q1,t, V)
     tb = (q0 - q1 + V*tf)/V
     a = V/tb
 
-    p = Array(Float64,size(t))
-    pd = Array(Float64,size(t))
-    pdd = Array(Float64,size(t))
+    p = Array{Float64}(size(t))
+    pd = Array{Float64}(size(t))
+    pdd = Array{Float64}(size(t))
 
     for (i,t) = enumerate(t)
         if t <= tb

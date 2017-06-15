@@ -38,7 +38,7 @@ c,σ2    = get_centers_linear(Nbasis,x)
 dmp = fit(y,ẏ,ÿ,t,optsC)
 f = force(dmp,x)
 @test size(f) == (T,2)
-@test all(isfinite(f))
+@test all(isfinite.(f))
 f = force(dmp,x[1],1)
 @test isa(f,Number)
 @test isfinite(f)
@@ -50,7 +50,7 @@ a = acceleration(dmp,_1(y),_1(ẏ),x[1],g)
 @test size(a) == (2,)
 a = acceleration(dmp,y,ẏ,x,g)
 @test size(a) == (T,2)
-@test all(isfinite(a))
+@test all(isfinite.(a))
 
 
 # Tests time     ============================================
@@ -103,8 +103,8 @@ a = acceleration(dmp,y,ẏ,x,g)
 dmp = fit(y,ẏ,ÿ,t,optsC)
 tout,youtC,ẏout,xout = solve(dmp)
 @test tout == t
-@test abs(youtC .- y) |> sum < 2
-@test abs(ẏout .- ẏ) |> sum < 0.3
+@test abs.(youtC .- y) |> sum < 2
+@test abs.(ẏout .- ẏ) |> sum < 0.3
 # plotdmp(dmp)
 
 # dmp = fit(y,ẏ,ÿ,t,optsT)
@@ -151,16 +151,7 @@ ctraj2 = forward_kin(jtraj)
 
 
 
-
-
-
-
-
-
-
-
-
-
+# TEST 2 dof controller
 
 using DynamicMovementPrimitives
 Nbasis  = 15
@@ -168,7 +159,7 @@ Nbasis  = 15
 αx      = 1.
 opts    = DMPopts(Nbasis,αx,αz)
 
-y       = [zeros(10);linspace(0,2,1000); 2ones(500)]
+y       = [zeros(10);linspace(0,2,1000); 2ones(100)]
 T       = length(y)
 t       = linspace(0,10,T)
 h       = t[2]-t[1] # Sample interval
@@ -197,12 +188,13 @@ function euler_disturbance(time_derivative, state0, t, args...; kwargs...)
 end
 
 t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler_disturbance)
-plot(t,ẏc, lab="\$ẏ_c\$", c=:red, l=(:dash, 3), layout=(2,2), subplot=1)
-plot!(t,yc, lab="\$y_c\$", c=:red, l=(:dash, 3), subplot=2)
-plot!(t,ẏa, lab="\$ẏ_a\$", c=:blue, subplot=1)
-plot!(t,ya, lab="\$y_a\$", c=:blue, subplot=2)
-plot!(t,e, lab="\$e\$", c=:green, subplot=3)
-plot!(t,400 .<= 1:T .< 600, lab="Disturbance", c=:green, subplot=4, fillrange=0)
+# plot(t,ẏc, lab="\$ẏ_c\$", c=:red, l=(:dash, 3), layout=(2,2), subplot=1)
+# plot!(t,yc, lab="\$y_c\$", c=:red, l=(:dash, 3), subplot=2)
+# plot!(t,ẏa, lab="\$ẏ_a\$", c=:blue, subplot=1)
+# plot!(t,ya, lab="\$y_a\$", c=:blue, subplot=2)
+# plot!(t,e, lab="\$e\$", c=:green, subplot=3)
+# plot!(t,400 .<= 1:T .< 600, lab="Disturbance", c=:green, subplot=4, fillrange=0)
+
 t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler)
-plot!(t,ẏc, lab="\$ẏ_u\$", c=:black, l=(:dashdot, 3), subplot=1)
-plot!(t,yc, lab="\$y_u\$", c=:black, l=(:dashdot, 3), subplot=2)
+# plot!(t,ẏc, lab="\$ẏ_u\$", c=:black, l=(:dashdot, 3), subplot=1)
+# plot!(t,yc, lab="\$y_u\$", c=:black, l=(:dashdot, 3), subplot=2)
