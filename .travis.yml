@@ -11,6 +11,7 @@ notifications:
 #script:
 #  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
 #  - julia -e 'Pkg.clone(pwd()); Pkg.build("DynamicMovementPrimitives"); Pkg.test("DynamicMovementPrimitives"; coverage=true)'
+after_success:
   # push coverage results to Coveralls
   - julia -e 'cd(Pkg.dir("DynamicMovementPrimitives")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
   # push coverage results to Codecov
