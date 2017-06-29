@@ -190,6 +190,7 @@ end
 
 t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler_disturbance)
 =#
+
 # plot(t,ẏc, lab="\$ẏ_c\$", c=:red, l=(:dash, 3), layout=(2,2), subplot=1)
 # plot!(t,yc, lab="\$y_c\$", c=:red, l=(:dash, 3), subplot=2)
 # plot!(t,ẏa, lab="\$ẏ_a\$", c=:blue, subplot=1)

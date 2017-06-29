@@ -65,7 +65,7 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
     e   = zeros(T,n)
     x   = zeros(T)
     for i = 1:n
-        function time_derivative(t,state)
+        function time_derivative(t,state,dstate)
             local yc  = state[1]
             local ẏc  = state[2]
             local ya  = state[3]
@@ -73,7 +73,12 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
             local e   = state[5]
             local x   = state[6]
             ẏc,ÿc,ẏa,ÿa,ė,ẋ = acceleration(dmp,yc,ẏc,x,ya,ẏa,e,g[i],i)
-            [ẏc,ÿc,ẏa,ÿa,ė,ẋ]
+            dstate[1] = ẏc
+            dstate[2] = ÿc
+            dstate[3] = ẏa
+            dstate[4] = ÿa
+            dstate[5] = ė
+            dstate[6] = ẋ
         end
         state0 = [y0[i], dmp.ẏ[1,i], y0[i], dmp.ẏ[1,i], 0, 1.]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))

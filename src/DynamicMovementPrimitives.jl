@@ -217,14 +217,13 @@ function solve_canonical(dmp::DMP, t, y0, g, solver)
     y   = zeros(T,n)
     x   = zeros(T)
     for i = 1:n
-        function time_derivative(t,state)
+        function time_derivative(t,state,dstate)
             local z   = state[1]
             local y   = state[2]
             local x   = state[3]
-            zp  = acceleration(dmp, y, z, x,g[i],i)
-            yp  = z
-            xp  = -αx/τ * x
-            [zp;yp;xp]
+            dstate[1] = acceleration(dmp, y, z, x,g[i],i)
+            dstate[2] = z
+            dstate[3] = -αx/τ * x
         end
         state0 = [dmp.ẏ[1,i]; y0[i]; 1.]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
@@ -243,12 +242,11 @@ function solve_position(dmp, t, y0, g, solver)
     z   = zeros(T,n)
     y   = zeros(T,n)
     for i = 1:n
-        function time_derivative(t,state)
+        function time_derivative(t,state,dstate)
             local z   = state[1]
             local y   = state[2]
-            zp  = acceleration(dmp, y, z, g[i]-y,g[i],i)
-            yp  = z
-            [zp;yp]
+            dstate[1] = acceleration(dmp, y, z, g[i]-y,g[i],i)
+            dstate[2] = z
         end
         state0  = [0; y0[i]]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
@@ -266,12 +264,11 @@ function solve_time(dmp, t, y0, g, solver)
     z       = zeros(T,n)
     y       = zeros(T,n)
     for i = 1:n
-        function time_derivative(t,state)
+        function time_derivative(t,state,dstate)
             local z   = state[1]
             local y   = state[2]
-            zp  = acceleration(dmp, y, z, t ,g[i],i)
-            yp  = z
-            [zp;yp]
+            dstate[1] = acceleration(dmp, y, z, t ,g[i],i)
+            dstate[2] = z
         end
         state0  = [0; y0[i]]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
