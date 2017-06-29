@@ -76,14 +76,14 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
             [ẏc,ÿc,ẏa,ÿa,ė,ẋ]
         end
         state0 = [y0[i], dmp.ẏ[1,i], y0[i], dmp.ẏ[1,i], 0, 1.]
-        tout,state_history = solver(time_derivative, state0, t,points=:specified)
-        res      = vv2m(state_history)
-        yc[:,i]  = res[:,1]
-        ẏc[:,i]  = res[:,2]
-        ya[:,i]  = res[:,3]
-        ẏa[:,i]  = res[:,4]
-        e[:,i]   = res[:,5]
-        x[:]     = res[6] # TODO: se till att denna är samma för alla DOF
+        prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
+        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
+        yc[:,i]  = sol[1,:]
+        ẏc[:,i]  = sol[2,:]
+        ya[:,i]  = sol[3,:]
+        ẏa[:,i]  = sol[4,:]
+        e[:,i]   = sol[5,:]
+        x[:]     = sol[6,:] # TODO: se till att denna är samma för alla DOF
     end
     t,yc,ẏc,x,ya,ẏa,e
 end

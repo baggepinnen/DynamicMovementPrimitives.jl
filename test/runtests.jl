@@ -172,6 +172,7 @@ dmp2 = DMP2dof(dmp, dmp2opts) # Upgrade dmp to 2DOF version
 
 t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t)
 
+#=
 function euler_disturbance(time_derivative, state0, t, args...; kwargs...)
     T = length(t)
     n = length(state0)
@@ -188,6 +189,7 @@ function euler_disturbance(time_derivative, state0, t, args...; kwargs...)
 end
 
 t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler_disturbance)
+=#
 # plot(t,ẏc, lab="\$ẏ_c\$", c=:red, l=(:dash, 3), layout=(2,2), subplot=1)
 # plot!(t,yc, lab="\$y_c\$", c=:red, l=(:dash, 3), subplot=2)
 # plot!(t,ẏa, lab="\$ẏ_a\$", c=:blue, subplot=1)
@@ -195,6 +197,7 @@ t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler_disturbance)
 # plot!(t,e, lab="\$e\$", c=:green, subplot=3)
 # plot!(t,400 .<= 1:T .< 600, lab="Disturbance", c=:green, subplot=4, fillrange=0)
 
-t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=euler)
+import OrdinaryDiffEq
+t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t, solver=OrdinaryDiffEq.Euler())
 # plot!(t,ẏc, lab="\$ẏ_u\$", c=:black, l=(:dashdot, 3), subplot=1)
 # plot!(t,yc, lab="\$y_u\$", c=:black, l=(:dashdot, 3), subplot=2)

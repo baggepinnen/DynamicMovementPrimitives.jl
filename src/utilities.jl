@@ -57,10 +57,6 @@ function centraldiff(v::AbstractVector)
     a = a1+a2
 end
 
-"""Takes an n vector of m vectors and creates a n×m matrix"""
-vv2m(x::Vector) = [x[i][j] for i in eachindex(x), j in eachindex(x[1])]
-vv2m(x::Matrix) = x
-
 _1(y::VecOrMat) = y[1,:][:]
 _1(dmp::AbstractDMP) = _1(dmp.y)
 _T(dmp::AbstractDMP) = size(dmp.y,1)
