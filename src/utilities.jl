@@ -89,7 +89,7 @@ plot(dmp::DMP, phase::Bool=false; [y0])
     end
     layout := (n,1)
     tout,yout,ẏout,xout = solve(dmp, y0=y0)[1:4]
-    delete!(d,:y0)
+    delete!(plotattributes,:y0)
     if phase
         xguide := "Position 1"
         yguide := "Position 2"
