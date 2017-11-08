@@ -62,10 +62,20 @@ function acceleration(q1,q2,qd1,qd2,τ1,τ2)
 end
 
 function acceleration(τ::Tuple, q::Tuple, qd::Tuple)
-    q1,q2 = q
+    q1,q2   = q
     qd1,qd2 = qd
-    τ1,τ2 = τ
+    τ1,τ2   = τ
     acceleration(q1,q2,qd1,qd2,τ1,τ2)
+end
+
+function Base.broadcast(::typeof(acceleration), τ, q, q̇)
+    q̈ = similar(q)
+    for i = 1:size(q,2)
+        q̈1,q̈2 = acceleration(q[:,i]..., q̇[:,i]...,τ[:,i]...)
+        q̈[1,i] = q̈1
+        q̈[2,i] = q̈2
+    end
+    q̈
 end
 
 function time_derivative(state, τ)
