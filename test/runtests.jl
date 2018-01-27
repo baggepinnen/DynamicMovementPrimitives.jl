@@ -127,7 +127,7 @@ tout,youtC,ẏout,xout = solve(dmp)
 # Test twolink
 include("../src/two_link.jl")
 using TwoLink
-p,pd,pdd = traj(0,1,0:100)
+p,pd,pdd = traj(0.,1.,0:100)
 @test p[1] == 0
 @test p[end] == 1
 @test pd[1] == 0
