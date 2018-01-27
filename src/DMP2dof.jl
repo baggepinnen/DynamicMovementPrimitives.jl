@@ -65,7 +65,7 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
     e   = zeros(T,n)
     x   = zeros(T)
     for i = 1:n
-        function time_derivative(t,state,dstate)
+        function time_derivative(dstate, state, p, t)
             local yc  = state[1]
             local ẏc  = state[2]
             local ya  = state[3]
