@@ -217,7 +217,7 @@ function solve_canonical(dmp::DMP, t, y0, g, solver)
     y   = zeros(T,n)
     x   = zeros(T)
     for i = 1:n
-        function time_derivative(t,state,dstate)
+        function time_derivative(dstate, state, p, t)
             local z   = state[1]
             local y   = state[2]
             local x   = state[3]
@@ -242,7 +242,7 @@ function solve_position(dmp, t, y0, g, solver)
     z   = zeros(T,n)
     y   = zeros(T,n)
     for i = 1:n
-        function time_derivative(t,state,dstate)
+        function time_derivative(dstate, state, p, t)
             local z   = state[1]
             local y   = state[2]
             dstate[1] = acceleration(dmp, y, z, g[i]-y,g[i],i)
@@ -264,7 +264,7 @@ function solve_time(dmp, t, y0, g, solver)
     z       = zeros(T,n)
     y       = zeros(T,n)
     for i = 1:n
-        function time_derivative(t,state,dstate)
+        function time_derivative(dstate, state, p, t)
             local z   = state[1]
             local y   = state[2]
             dstate[1] = acceleration(dmp, y, z, t ,g[i],i)
