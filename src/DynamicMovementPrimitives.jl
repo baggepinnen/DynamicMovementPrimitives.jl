@@ -42,7 +42,7 @@ mutable struct DMP <: AbstractDMP
     ẏ::Matrix{Float64}
     ÿ::Matrix{Float64}
     t::AbstractVector
-    w::Matrix{Float64}
+    w::Matrix
     τ::Float64
     c::VecOrMat{Float64}
     σ2::VecOrMat{Float64}
@@ -302,6 +302,24 @@ function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode4
         return solve_time(dmp, t, y0, g, solver)
     end
     solve_canonical(dmp, t, y0, g, solver)
+end
+
+
+"""
+    A = linearize(dmp::AbstractDMP, y, ẏ, x, y0)
+
+Linearize the dynamics of the DMP around the point (y,ẏ,x). The resulting linear system is on the form
+`q̈ = A*[y; ẏ; x]`
+"""
+function linearize(dmp::AbstractDMP, y, ẏ, x, y0)
+    error("g not taken care of")
+    n = size(y,1)
+    Ø = 0I
+    ϕ = kernel_vector(dmp,x)
+    ∇ϕ = - ϕ * (x-dmp.c)/dmp.σ2
+    ∇ϕwx = ∇ϕ*dmp.w*x + ϕ*dmp.w
+    A = -dmp.αz/dmp.τ * [Ø I Ø; dmp.βz/dmp.τ*I I Ø; Ø Ø dmp.αx*I] # Linear part
+    A[n+1:2n, 2n+1:3n] = ∇ϕwx * (dmp.g-y0) / dmp.τ^2# Linearized force term
 end
 
 

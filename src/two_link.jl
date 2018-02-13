@@ -79,7 +79,7 @@ function acceleration(τ::Tuple, q::Tuple, qd::Tuple)
 end
 
 function acceleration(τ, q, q̇)
-    q̈ = similar(q)
+    q̈ = similar(q, dims=(2,size(q,2)))
     for i = 1:size(q,2)
         q̈1,q̈2 = acceleration(q[:,i]..., q̇[:,i]...,τ[:,i]...)
         q̈[1,i] = q̈1
@@ -123,9 +123,10 @@ function forward_kin(q)
 end
 
 function forward_kin(jtraj::Matrix)
-    p = zeros(jtraj)
-    for i = 1:size(jtraj,2)
-        q = jtraj[:,i]
+    N = size(jtraj,2)
+    p = zeros(eltype(jtraj), 2, N)
+    for i = 1:N
+        q = jtraj[1:2,i]
         p[:,i] = forward_kin(q)[2] |> collect
     end
     p
@@ -173,9 +174,9 @@ function inverse_kin(ctraj::Matrix, dir = :up)
     else
         error("Symbol direction unknown")
     end
-
-    p = zeros(ctraj)
-    for i = 1:size(ctraj,2)
+    N = size(ctraj,2)
+    p = zeros(eltype(ctraj), 2, N)
+    for i = 1:N
         q = ctraj[:,i]
         p[:,i] = kin_fun(q) |> collect
     end
