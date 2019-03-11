@@ -1,4 +1,5 @@
 module TwoLink
+using RecipesBase
 
 export torque, forward_kin, inverse_kin, inverse_kin_up, inverse_kin_down, traj, connect_points, acceleration, time_derivative, time_derivative!, inertia, ⊕
 ⊕(a::Tuple{Number,Number}, b::Tuple{Number,Number}) = (a[1]+b[1], a[2]+b[2])
@@ -122,7 +123,7 @@ function forward_kin(q)
     p1, p
 end
 
-function forward_kin(jtraj::Matrix)
+function forward_kin(jtraj::AbstractMatrix)
     N = size(jtraj,2)
     p = zeros(eltype(jtraj), 2, N)
     for i = 1:N
@@ -166,7 +167,7 @@ end
 
 `p` is of size N × 2
 """
-function inverse_kin(ctraj::Matrix, dir = :up)
+function inverse_kin(ctraj::AbstractMatrix, dir = :up)
     if dir == :up
         kin_fun = inverse_kin_up
     elseif dir == :down
@@ -190,7 +191,7 @@ Move from `q0` to `q1` during total time `t` using quadratic blends.
 """
 function traj(q0,q1,t)
     tf = maximum(t)
-    V = (q1-q0)/tf * 1.5
+    V = (q1-q0) ./tf * 1.5
     traj(q0,q1,t, V)
 end
 
@@ -218,9 +219,9 @@ function traj(q0,q1,t, V)
     tb = (q0 - q1 + V*tf)/V
     a = V/tb
 
-    p = Array{eltype(q0)}(size(t))
-    pd = Array{eltype(q0)}(size(t))
-    pdd = Array{eltype(q0)}(size(t))
+    p = Array{eltype(q0)}(undef, size(t))
+    pd = Array{eltype(q0)}(undef, size(t))
+    pdd = Array{eltype(q0)}(undef, size(t))
 
     for (i,t) = enumerate(t)
         if t <= tb
@@ -276,12 +277,12 @@ function connect_points(points,ni)
     p', pd', pdd'
 end
 
-
-function plotworkspace(N=1000)
+@userplot Plotworkspace
+@recipe function plotworkspace(p::Plotworkspace, N=1000)
     q = [(2π*rand(),2π*rand()) for n in 1:N]
     p = getindex.(forward_kin.(q), 2)
     p1,p2 = getindex.(p,1), getindex.(p,2)
-    scatter(p1,p2)
+    seriesstyle := :scatter
     p1,p2
 end
 

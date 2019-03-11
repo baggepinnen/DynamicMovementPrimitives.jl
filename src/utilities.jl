@@ -4,8 +4,8 @@
 `x` is the (multidimensional) scheduling signal
 """
 function get_centers_linear(Nbasis,x)
-    ma = maximum(x,1)
-    mi = minimum(x,1)
+    ma = maximum(x,dims=1)
+    mi = minimum(x,dims=1)
     n = size(x,2)
     d = ma-mi
     Ni = d./(Nbasis+1)
@@ -13,8 +13,8 @@ function get_centers_linear(Nbasis,x)
     σ2 = zeros(Nbasis,n)
     c = zeros(Nbasis,n)
     for i = 1:n
-        σ2[:,i] = d[i]*(0.5/Nbasis)^2 * ones(Nbasis)
-        c[:,i]  = linspace(mi[i]+0Ni[i],ma[i]-0Ni[i],Nbasis)
+        σ2[:,i] .= d[i]*(0.5/Nbasis)^2
+        c[:,i]  = LinRange(mi[i]+0Ni[i],ma[i]-0Ni[i],Nbasis)
     end
     return c, σ2
 end
@@ -28,7 +28,7 @@ comp(x) = (x)
 
 function kernel_matrix(x::AbstractVecOrMat,c,σ2)
     Ψ = Float64[exp(-1/(2σ2[j])*(comp(x)-(c[j]))^2) for x in x, j in eachindex(c)]
-    Ψ ./= sum(Ψ,2)
+    Ψ ./= sum(Ψ,dims=2)
     Ψ
 end
 
@@ -44,14 +44,14 @@ end
 
 
 function centraldiff(v::AbstractMatrix)
-    dv = diff(v)/2
+    dv = diff(v,dims=1)./2
     a1 = [dv[[1],:];dv]
     a2 = [dv;dv[[size(dv,1)],:]]
     a = a1+a2
 end
 
 function centraldiff(v::AbstractVector)
-    dv = diff(v)/2
+    dv = diff(v)./2
     a1 = [dv[1];dv]
     a2 = [dv;dv[end]]
     a = a1+a2
@@ -66,7 +66,7 @@ math(sl) = map(s->string("\$",s,"\$") ,sl)
 function euler(time_derivative, state0, t, args...; kwargs...)
     T = length(t)
     n = length(state0)
-    res = Matrix{Float64}(T,n)
+    res = Matrix{Float64}(undef,T,n)
     res[1,:] = state0
     for i in 2:T
         res[i,:] = res[i-1,:] + time_derivative(t[i-1],res[i-1,:])*(t[2]-t[1])
@@ -119,33 +119,38 @@ plot(dmp::DMP, phase::Bool=false; [y0])
             phase ? (dmp.y[:,1], dmp.y[:,2]) : (tout, [dmp.y[:,i] dmp.ẏ[:,i]])
         end
     end
+    delete!(plotattributes,:phase)
 
 end
 
 
-
-
-
-plotdmp(dmp::AbstractDMP, args...) = println("To plot a DMP, install package Plots.jl or call tout,yout,ẏout,xout = solve(dmp) to produce your own plot.")
-
-@require Plots begin
-math(sl) = map(s->string("\$",s,"\$") ,sl)
-function plotdmp(dmp::AbstractDMP; kwargs...)
+@recipe function plotdmp(dmp::AbstractDMP; phase=false)
     tout,yout,ẏout,xout = solve(dmp)[1:4]
     n = size(dmp.y,2)
-    fig = Plots.plot(layout = (n,1))
-    for i = 1:n
-        Plots.plot!(tout,[yout[:,i] ẏout[:,i]],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
-        Plots.plot!(tout,[dmp.y[:,i] dmp.ẏ[:,i]],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
+    if phase
+        @series begin
+            label := ["y_{out}" "ẏ_{out}"] |> math
+            yout[:,1], yout[:,2]
+        end
+        @series begin
+            linestyle := :dash
+            label := ["y" "ẏ"] |> math
+            dmp.y[:,1], dmp.y[:,2]
+        end
+    else
+        layout := (n,1)
+        for i = 1:n
+            @series begin
+                label := ["y_{out}" "ẏ_{out}"] |> math
+                tout,[yout[:,i] ẏout[:,i]]
+            end
+            @series begin
+                linestyle := :dash
+                label := ["y" "ẏ"] |> math
+                tout,[dmp.y[:,i] dmp.ẏ[:,i]]
+            end
+        end
     end
-    Plots.gui()
-end
-
-function plotdmpphase(dmp::AbstractDMP; kwargs...)
-    tout,yout,ẏout,xout = solve(dmp)[1:4]
-    Plots.plot(yout[:,1],yout[:,2],lab = ["y_{out}" "ẏ_{out}"] |> math; kwargs...)
-    Plots.plot!(dmp.y[:,1],dmp.y[:,2],l=:dash,lab = ["y" "ẏ"] |> math; kwargs...)
-    Plots.gui()
-end
-
+    delete!(plotattributes, :phase)
+    nothing
 end
