@@ -1,6 +1,6 @@
 module DynamicMovementPrimitives
-using ODE, Requires, RecipesBase
-
+using Requires, RecipesBase
+import OrdinaryDiffEq
 
 export DMP, DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, kernel_vector, plotdmp, plotdmpphase, euler
 
@@ -217,21 +217,20 @@ function solve_canonical(dmp::DMP, t, y0, g, solver)
     y   = zeros(T,n)
     x   = zeros(T)
     for i = 1:n
-        function time_derivative(t,state)
+        function time_derivative(dstate, state, p, t)
             local z   = state[1]
             local y   = state[2]
             local x   = state[3]
-            zp  = acceleration(dmp, y, z, x,g[i],i)
-            yp  = z
-            xp  = -αx/τ * x
-            [zp;yp;xp]
+            dstate[1] = acceleration(dmp, y, z, x,g[i],i)
+            dstate[2] = z
+            dstate[3] = -αx/τ * x
         end
         state0 = [dmp.ẏ[1,i]; y0[i]; 1.]
-        tout,state_history = solver(time_derivative, state0, t,points=:specified)
-        res    = vv2m(state_history)
-        z[:,i] = res[:,1]
-        y[:,i] = res[:,2]
-        x      = res[:,3] # TODO: se till att denna är samma för alla DOF
+        prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
+        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
+        z[:,i] = sol[1,:]
+        y[:,i] = sol[2,:]
+        x      = sol[3,:] # TODO: se till att denna är samma för alla DOF
     end
     t,y,z,x
 end
@@ -243,18 +242,17 @@ function solve_position(dmp, t, y0, g, solver)
     z   = zeros(T,n)
     y   = zeros(T,n)
     for i = 1:n
-        function time_derivative(t,state)
+        function time_derivative(dstate, state, p, t)
             local z   = state[1]
             local y   = state[2]
-            zp  = acceleration(dmp, y, z, g[i]-y,g[i],i)
-            yp  = z
-            [zp;yp]
+            dstate[1] = acceleration(dmp, y, z, g[i]-y,g[i],i)
+            dstate[2] = z
         end
         state0  = [0; y0[i]]
-        tout,state_history = solver(time_derivative, state0, t,points=:specified)
-        res = vv2m(state_history)
-        z[:,i] = res[:,1]
-        y[:,i] = res[:,2]
+        prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
+        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
+        z[:,i] = sol[1,:]
+        y[:,i] = sol[2,:]
     end
     t,y,z,y
 end
@@ -266,18 +264,17 @@ function solve_time(dmp, t, y0, g, solver)
     z       = zeros(T,n)
     y       = zeros(T,n)
     for i = 1:n
-        function time_derivative(t,state)
+        function time_derivative(dstate, state, p, t)
             local z   = state[1]
             local y   = state[2]
-            zp  = acceleration(dmp, y, z, t ,g[i],i)
-            yp  = z
-            [zp;yp]
+            dstate[1] = acceleration(dmp, y, z, t ,g[i],i)
+            dstate[2] = z
         end
         state0  = [0; y0[i]]
-        tout,state_history = solver(time_derivative, state0, t,points=:specified)
-        res = vv2m(state_history)
-        z[:,i] = res[:,1]
-        y[:,i] = res[:,2]
+        prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
+        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
+        z[:,i] = sol[1,:]
+        y[:,i] = sol[2,:]
     end
     t,y,z,t
 end
@@ -295,7 +292,7 @@ The default solver is `solver=ode54`, a faster alternative is `solver=euler`
 
 see also `plotdmp`
 """
-function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=ode45)
+function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=OrdinaryDiffEq.Tsit5())
     if dmp.opts.sched_sig == :position
         return solve_position(dmp, t, y0, g, solver)
     elseif dmp.opts.sched_sig == :time

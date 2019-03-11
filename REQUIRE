@@ -1,4 +1,4 @@
-julia 0.6.0-pre
-ODE
+julia 0.6.0
+OrdinaryDiffEq
 RecipesBase 0.2.3
 Requires

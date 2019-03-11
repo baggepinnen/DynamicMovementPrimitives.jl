@@ -65,7 +65,7 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
     e   = zeros(T,n)
     x   = zeros(T)
     for i = 1:n
-        function time_derivative(t,state)
+        function time_derivative(dstate, state, p, t)
             local yc  = state[1]
             local ẏc  = state[2]
             local ya  = state[3]
@@ -73,17 +73,22 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
             local e   = state[5]
             local x   = state[6]
             ẏc,ÿc,ẏa,ÿa,ė,ẋ = acceleration(dmp,yc,ẏc,x,ya,ẏa,e,g[i],i)
-            [ẏc,ÿc,ẏa,ÿa,ė,ẋ]
+            dstate[1] = ẏc
+            dstate[2] = ÿc
+            dstate[3] = ẏa
+            dstate[4] = ÿa
+            dstate[5] = ė
+            dstate[6] = ẋ
         end
         state0 = [y0[i], dmp.ẏ[1,i], y0[i], dmp.ẏ[1,i], 0, 1.]
-        tout,state_history = solver(time_derivative, state0, t,points=:specified)
-        res      = vv2m(state_history)
-        yc[:,i]  = res[:,1]
-        ẏc[:,i]  = res[:,2]
-        ya[:,i]  = res[:,3]
-        ẏa[:,i]  = res[:,4]
-        e[:,i]   = res[:,5]
-        x[:]     = res[6] # TODO: se till att denna är samma för alla DOF
+        prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
+        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
+        yc[:,i]  = sol[1,:]
+        ẏc[:,i]  = sol[2,:]
+        ya[:,i]  = sol[3,:]
+        ẏa[:,i]  = sol[4,:]
+        e[:,i]   = sol[5,:]
+        x[:]     = sol[6,:] # TODO: se till att denna är samma för alla DOF
     end
     t,yc,ẏc,x,ya,ẏa,e
 end
