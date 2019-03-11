@@ -20,7 +20,7 @@ Nbasis = 20
 opts = DMPopts(Nbasis,αx,αz, :canonical)
 
 T = size(y,1)
-t = linspace(0,T,T)
+t = LinRange(0,T,T)
 τ = t[end]/3
 h = t[2]-t[1]
 qd = centraldiff(q) / h

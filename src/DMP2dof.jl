@@ -54,7 +54,7 @@ function _acceleration(d,f, yc,ẏc,x,ya,ẏa,e,g)
     ẏc,ÿc,ẏa,ÿa,ė,ẋ
 end
 
-function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
+function solve_canonical(dmp::DMP2dof, t, y0, g, solver; kwargs...)
     T,n = size(dmp.y)
     αx  = dmp.opts.αx
     τ   = dmp.τ
@@ -82,13 +82,13 @@ function solve_canonical(dmp::DMP2dof, t, y0, g, solver)
         end
         state0 = [y0[i], dmp.ẏ[1,i], y0[i], dmp.ẏ[1,i], 0, 1.]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
-        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
-        yc[:,i]  = sol[1,:]
-        ẏc[:,i]  = sol[2,:]
-        ya[:,i]  = sol[3,:]
-        ẏa[:,i]  = sol[4,:]
-        e[:,i]   = sol[5,:]
-        x[:]     = sol[6,:] # TODO: se till att denna är samma för alla DOF
+        sol = OrdinaryDiffEq.solve(prob,solver;saveat=t,dt=t[2], kwargs...)
+        yc[:,i]  = sol(t,idxs=1)
+        ẏc[:,i]  = sol(t,idxs=2)
+        ya[:,i]  = sol(t,idxs=3)
+        ẏa[:,i]  = sol(t,idxs=4)
+        e[:,i]   = sol(t,idxs=5)
+        x[:]     = sol(t,idxs=6) # TODO: se till att denna är samma för alla DOF
     end
     t,yc,ẏc,x,ya,ẏa,e
 end

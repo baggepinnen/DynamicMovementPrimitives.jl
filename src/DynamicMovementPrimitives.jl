@@ -1,5 +1,5 @@
 module DynamicMovementPrimitives
-using Requires, RecipesBase
+using LinearAlgebra, RecipesBase
 import OrdinaryDiffEq
 
 export DMP, DMPopts, centraldiff,fit, solve, force, acceleration, solve_canonical, kernel_vector, plotdmp, plotdmpphase, euler
@@ -113,7 +113,7 @@ function fit(y,ẏ,ÿ,t,opts,g=y[end,:][:])
         else # LWR
             for j = 1:Nbasis
                 sTΓ = ξ[:,i].*Ψ[:,j]
-                w[j,i] = vecdot(sTΓ,ft[:,i])/vecdot(sTΓ,ξ[:,i])
+                w[j,i] = dot(sTΓ,ft[:,i])/dot(sTΓ,ξ[:,i])
             end
         end
     end
@@ -124,7 +124,7 @@ function force_single(d::AbstractDMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
     Ψ  = kernel_vector(x, d.c, d.σ2)
-    f = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
+    f = dot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
 function force_single(d::AbstractDMP,x::Number)
@@ -145,7 +145,7 @@ function force_multiple(d::AbstractDMP,x::Number, i)
     # ODE Point case
     y0 = _1(d)
     Ψ  = kernel_vector(x, d.c[:,i], d.σ2[:,i])
-    f  = vecdot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
+    f  = dot(Ψ,d.w[:,i]) * x*(d.g[i]-y0[i])
 end
 
 function force_multiple(d::AbstractDMP,x::AbstractVector)
@@ -155,7 +155,7 @@ function force_multiple(d::AbstractDMP,x::AbstractVector)
     f = zeros(n)
     for i = 1:n
         Ψ    = kernel_matrix([x[i]], d.c[:,i], d.σ2[:,i])
-        f[i] = vecdot(Ψ,d.w[:,i]) * x[i].*(d.g[i]-y0[i])
+        f[i] = dot(Ψ,d.w[:,i]) * x[i].*(d.g[i]-y0[i])
     end
     f
 end
@@ -209,7 +209,7 @@ function acceleration(d::DMP, y::AbstractMatrix,ẏ::AbstractMatrix,x::AbstractV
     (d.opts.αz*(d.opts.βz*(g'.-y)-d.τ*ẏ)+f)/d.τ^2
 end
 
-function solve_canonical(dmp::DMP, t, y0, g, solver)
+function solve_canonical(dmp::DMP, t, y0, g, solver; kwargs...)
     T,n = size(dmp.y)
     αx  = dmp.opts.αx
     τ   = dmp.τ
@@ -227,7 +227,7 @@ function solve_canonical(dmp::DMP, t, y0, g, solver)
         end
         state0 = [dmp.ẏ[1,i]; y0[i]; 1.]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
-        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
+        sol = OrdinaryDiffEq.solve(prob,solver;saveat=t,dt=t[2], kwargs...)
         z[:,i] = sol[1,:]
         y[:,i] = sol[2,:]
         x      = sol[3,:] # TODO: se till att denna är samma för alla DOF
@@ -235,7 +235,7 @@ function solve_canonical(dmp::DMP, t, y0, g, solver)
     t,y,z,x
 end
 
-function solve_position(dmp, t, y0, g, solver)
+function solve_position(dmp, t, y0, g, solver; kwargs...)
     T,n = size(dmp.y)
     αx  = dmp.opts.αx
     τ   = dmp.τ
@@ -250,14 +250,14 @@ function solve_position(dmp, t, y0, g, solver)
         end
         state0  = [0; y0[i]]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
-        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
+        sol = OrdinaryDiffEq.solve(prob,solver;saveat=t,dt=t[2], kwargs...)
         z[:,i] = sol[1,:]
         y[:,i] = sol[2,:]
     end
     t,y,z,y
 end
 
-function solve_time(dmp, t, y0, g, solver)
+function solve_time(dmp, t, y0, g, solver; kwargs...)
     T,n     = size(dmp.y)
     αx      = dmp.opts.αx
     τ       = dmp.τ
@@ -272,7 +272,7 @@ function solve_time(dmp, t, y0, g, solver)
         end
         state0  = [0; y0[i]]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
-        sol = OrdinaryDiffEq.solve(prob,solver,saveat=t,dt=t[2])
+        sol = OrdinaryDiffEq.solve(prob,solver;saveat=t,dt=t[2], kwargs...)
         z[:,i] = sol[1,:]
         y[:,i] = sol[2,:]
     end
@@ -292,13 +292,13 @@ The default solver is `solver=ode54`, a faster alternative is `solver=euler`
 
 see also `plotdmp`
 """
-function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=OrdinaryDiffEq.Tsit5())
+function solve(dmp::AbstractDMP, t = dmp.t; y0 = _1(dmp), g = dmp.g, solver=OrdinaryDiffEq.Tsit5(), kwargs...)
     if dmp.opts.sched_sig == :position
-        return solve_position(dmp, t, y0, g, solver)
+        return solve_position(dmp, t, y0, g, solver; kwargs...)
     elseif dmp.opts.sched_sig == :time
-        return solve_time(dmp, t, y0, g, solver)
+        return solve_time(dmp, t, y0, g, solver; kwargs...)
     end
-    solve_canonical(dmp, t, y0, g, solver)
+    solve_canonical(dmp, t, y0, g, solver; kwargs...)
 end
 
 
