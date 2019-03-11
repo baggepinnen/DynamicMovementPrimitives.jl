@@ -61,7 +61,7 @@ _1(y::VecOrMat) = y[1,:][:]
 _1(dmp::AbstractDMP) = _1(dmp.y)
 _T(dmp::AbstractDMP) = size(dmp.y,1)
 
-math(sl) = map(s->string("\$",s,"\$") ,sl)
+math(sl) = identity(sl) #map(s->string("\$",s,"\$") ,sl)
 
 function euler(time_derivative, state0, t, args...; kwargs...)
     T = length(t)
@@ -120,37 +120,5 @@ plot(dmp::DMP, phase::Bool=false; [y0])
         end
     end
     delete!(plotattributes,:phase)
-
-end
-
-
-@recipe function plotdmp(dmp::AbstractDMP; phase=false)
-    tout,yout,ẏout,xout = solve(dmp)[1:4]
-    n = size(dmp.y,2)
-    if phase
-        @series begin
-            label := ["y_{out}" "ẏ_{out}"] |> math
-            yout[:,1], yout[:,2]
-        end
-        @series begin
-            linestyle := :dash
-            label := ["y" "ẏ"] |> math
-            dmp.y[:,1], dmp.y[:,2]
-        end
-    else
-        layout := (n,1)
-        for i = 1:n
-            @series begin
-                label := ["y_{out}" "ẏ_{out}"] |> math
-                tout,[yout[:,i] ẏout[:,i]]
-            end
-            @series begin
-                linestyle := :dash
-                label := ["y" "ẏ"] |> math
-                tout,[dmp.y[:,i] dmp.ẏ[:,i]]
-            end
-        end
-    end
-    delete!(plotattributes, :phase)
     nothing
 end
