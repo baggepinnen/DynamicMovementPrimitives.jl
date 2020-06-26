@@ -1,6 +1,4 @@
 # DynamicMovementPrimitives
-
-[![DynamicMovementPrimitives](http://pkg.julialang.org/badges/DynamicMovementPrimitives_0.6.svg)](http://pkg.julialang.org/?pkg=DynamicMovementPrimitives)
 [![Build Status](https://travis-ci.org/baggepinnen/DynamicMovementPrimitives.jl.svg?branch=master)](https://travis-ci.org/baggepinnen/DynamicMovementPrimitives.jl)
 
 Provides implementations of Ijspeert et al. 2013 and of Martin Karlsson, Fredrik Bagge Carlson, et al. 2017
