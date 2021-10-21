@@ -185,9 +185,9 @@ function inverse_kin(ctraj::AbstractMatrix, dir = :up)
 end
 
 """
-    p, pd, pdd = traj(q0,q1,t)
+    p, pd, pdd = traj(q0, q1, t)
 
-Move from `q0` to `q1` during total time `t` using quadratic blends.
+Move from `q0` to `q1` during time vector `t` using quadratic blends.
 """
 function traj(q0,q1,t)
     tf = maximum(t)
@@ -196,17 +196,17 @@ function traj(q0,q1,t)
 end
 
 """
-    p, pd, pdd = traj(q0,q1,t, V)
+    p, pd, pdd = traj(q0, q1, t, V)
 
-Move from `q0` to `q1` with velocity `V` and total time `t` using quadratic blends.
+Move from `q0` to `q1` with velocity `V` and time vector `t` using quadratic blends.
 """
-function traj(q0,q1,t, V)
+function traj(q0, q1, t, V)
     tf = maximum(t)
     V  = abs(V) * sign(q1-q0)
     if abs(V) < abs(q1-q0)/tf
-        error("V too small")
+        error("V too small, should be at least $(abs(q1-q0)/tf)")
     elseif abs(V) > 2*abs(q1-q0)/tf
-        error("V too big")
+        error("V too big, should be at most $(2*abs(q1-q0)/tf)")
     end
 
     if q0 == q1
@@ -258,23 +258,51 @@ qdd  = centraldiff(qd')'/sys.h
 u    = torque.(q,qd,qdd)
 ```
 """
-function connect_points(points,ni)
-    fx(i)    = traj(points[i,1],points[i+1,1],1:ni)
-    fy(i)    = traj(points[i,2],points[i+1,2],1:ni)
-    n        = size(points,2)
-    x,xd,xdd = fx(1)
-    y,yd,ydd = fy(1)
-    p        = [x y]
-    pd       = [xd yd]
-    pdd      = [xdd ydd]
-    for i = 2:n-1
-        x,xd,xdd = fx(i)
-        y,yd,ydd = fy(i)
-        p        = vcat(p,[x y])
-        pd       = vcat(pd,[xd yd])
-        pdd      = vcat(pdd,[xdd ydd])
+# function connect_points(points,ni=size(points, 1)-1)
+#     fx(i)    = traj(points[i,1],points[i+1,1],1:ni)
+#     fy(i)    = traj(points[i,2],points[i+1,2],1:ni)
+#     n        = size(points,2)
+#     x,xd,xdd = fx(1)
+#     y,yd,ydd = fy(1)
+#     p        = [x y]
+#     pd       = [xd yd]
+#     pdd      = [xdd ydd]
+#     for i = 2:n-1
+#         x,xd,xdd = fx(i)
+#         y,yd,ydd = fy(i)
+#         p        = vcat(p,[x y])
+#         pd       = vcat(pd,[xd yd])
+#         pdd      = vcat(pdd,[xdd ydd])
+#     end
+#     p', pd', pdd'
+# end
+
+function extend(x, paus)
+    if paus > 0
+        x = [x; fill(x[end], paus)]
+    else
+        x
     end
-    p', pd', pdd'
+end
+function connect_points(points, 
+                        ni = size(points, 1)-1,
+                        paus = 0,
+)
+    n = size(points,2)
+    np = size(points, 1)-1
+    fx(i, dim) = traj(points[i,dim],points[i+1,dim],1:ni)
+    joint_trajs = map(1:n) do d
+        segments = map(1:np) do i
+            x,xd,xdd = fx(i, d)
+        end
+        ntuple(3) do i
+            reduce(vcat, extend.(getindex.(segments, i), paus))
+        end
+    end
+    ntuple(3) do i
+        p = getindex.(joint_trajs, i)
+        reduce(hcat, p)
+    end
 end
 
 @userplot Plotworkspace
