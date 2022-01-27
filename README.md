@@ -1,5 +1,6 @@
 # DynamicMovementPrimitives
-[![Build Status](https://travis-ci.org/baggepinnen/DynamicMovementPrimitives.jl.svg?branch=master)](https://travis-ci.org/baggepinnen/DynamicMovementPrimitives.jl)
+[![Build Status](https://github.com/baggepinnen/DynamicMovementPrimitives.jl/workflows/CI/badge.svg)](https://github.com/baggepinnen/DynamicMovementPrimitives.jl/actions)
+[![Coverage](https://codecov.io/gh/baggepinnen/DynamicMovementPrimitives.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/DynamicMovementPrimitives.jl)
 
 Provides implementations of Ijspeert et al. 2013 and of Martin Karlsson, Fredrik Bagge Carlson, et al. 2017
 
