@@ -1,6 +1,8 @@
 using DynamicMovementPrimitives
 using Test
 import DynamicMovementPrimitives: get_sched_sig, get_centers_linear, kernel_matrix, _1
+import OrdinaryDiffEq
+using Plots
 
 # Setup ============================================
 Nbasis = 20
@@ -54,13 +56,13 @@ a = acceleration(dmp,y,ẏ,x,g)
 
 
 # Tests time     ============================================
-# x = get_sched_sig(:time,αx,τ,t,y,g)
-# c,σ2    = get_centers_linear(Nbasis,x)
-# Ψ = kernel_matrix(x,c,σ2)
-# @test size(x) == (T,)
-# @test size(c) == (Nbasis,1)
-# @test size(σ2) == (Nbasis,1)
-# @test size(Ψ) == (T,Nbasis)
+x = get_sched_sig(:time,αx,τ,t,y,g)
+c,σ2    = get_centers_linear(Nbasis,x)
+Ψ = kernel_matrix(x,c,σ2)
+@test size(x) == (T,)
+@test size(c) == (Nbasis,1)
+@test size(σ2) == (Nbasis,1)
+@test size(Ψ) == (T,Nbasis)
 #
 # dmp = fit(y,ẏ,ÿ,t,optsT)
 # f = force(dmp,x)
@@ -71,13 +73,13 @@ a = acceleration(dmp,y,ẏ,x,g)
 # @test isfinite(f)
 
 # Tests position ============================================
-# x = get_sched_sig(:position,αx,τ,t,y,g)
-# c,σ2    = get_centers_linear(Nbasis,x)
-# Ψ = kernel_matrix(x[:,1],c[:,1],σ2[:,1])
-# @test size(x) == (T,2)
-# @test size(c) == (Nbasis,2)
-# @test size(σ2) == (Nbasis,2)
-# @test size(Ψ) == (T,Nbasis)
+x = get_sched_sig(:position,αx,τ,t,y,g)
+c,σ2    = get_centers_linear(Nbasis,x)
+Ψ = kernel_matrix(x[:,1],c[:,1],σ2[:,1])
+@test size(x) == (T,2)
+@test size(c) == (Nbasis,2)
+@test size(σ2) == (Nbasis,2)
+@test size(Ψ) == (T,Nbasis)
 #
 # dmp = fit(y,ẏ,ÿ,t,optsP)
 # f = force(dmp,x)
@@ -105,7 +107,7 @@ tout,youtC,ẏout,xout = solve(dmp)
 @test tout == t
 @test abs.(youtC .- y) |> sum < 2
 @test abs.(ẏout .- ẏ) |> sum < 0.3
-# plotdmp(dmp)
+plot(dmp)
 
 # dmp = fit(y,ẏ,ÿ,t,optsT)
 # tout,youtT,ẏout,xout = solve(dmp)
@@ -168,8 +170,6 @@ dmp2opts = DMP2dofopts(kp = 25,kv = 10,kc = 10_000,αe = 5)
 dmp2    = DMP2dof(dmp, dmp2opts) # Upgrade dmp to 2DOF version
 
 t,yc,ẏc,x,ya,ẏa,e = solve(dmp2,t)
-
-import OrdinaryDiffEq
 
 condition(u,t,integrator) = 2.5 <= t < 4
 affect!(integrator) = (integrator.u[3] = integrator.uprev[3])
