@@ -228,8 +228,8 @@ function solve_canonical(dmp::DMP, t, y0, g, solver; kwargs...)
         state0 = [dmp.ẏ[1,i]; y0[i]; 1.]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
         sol = OrdinaryDiffEq.solve(prob,solver;saveat=t,dt=t[2], kwargs...)
-        z[:,i] = sol[1,:]
-        y[:,i] = sol[2,:]
+        z[:,i] .= sol[1,:]
+        y[:,i] .= sol[2,:]
         x      = sol[3,:] # TODO: se till att denna är samma för alla DOF
     end
     t,y,z,x
@@ -251,8 +251,8 @@ function solve_position(dmp, t, y0, g, solver; kwargs...)
         state0  = [0; y0[i]]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
         sol = OrdinaryDiffEq.solve(prob,solver;saveat=t,dt=t[2], kwargs...)
-        z[:,i] = sol[1,:]
-        y[:,i] = sol[2,:]
+        z[:,i] .= sol[1,:]
+        y[:,i] .= sol[2,:]
     end
     t,y,z,y
 end
@@ -273,8 +273,8 @@ function solve_time(dmp, t, y0, g, solver; kwargs...)
         state0  = [0; y0[i]]
         prob = OrdinaryDiffEq.ODEProblem(time_derivative,state0,(t[1],t[end]))
         sol = OrdinaryDiffEq.solve(prob,solver;saveat=t,dt=t[2], kwargs...)
-        z[:,i] = sol[1,:]
-        y[:,i] = sol[2,:]
+        z[:,i] .= sol[1,:]
+        y[:,i] .= sol[2,:]
     end
     t,y,z,t
 end

@@ -1,7 +1,7 @@
 name = "DynamicMovementPrimitives"
 uuid = "c3fee2e9-8015-57de-85e5-c840d3ed97ec"
 authors = ["Fredrik Bagge Carlson"]
-version = "0.4.0"
+version = "0.4.1"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
